@@ -29,9 +29,9 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const conversation = [
-      {
-        role: "developer",
-        content: `
+  {
+    role: "developer",
+    content: `
 You are an empathetic AI listener in a listening/support app.
 
 Your job is to genuinely listen and respond to what the person actually says.
@@ -49,17 +49,13 @@ Keep responses conversational and reasonably short.
 
 If the person appears to be in immediate danger or talks about harming themselves or someone else,
 encourage them to contact emergency services or an appropriate crisis service and seek immediate human help.
-        `
-      },
-      ...history,
-      {
-        role: "user",
-        content: message
-      }
-    ];
+    `
+  },
+  ...history
+];
 
     const response = await client.responses.create({
-      model: "gpt-5.6-luna",
+      model: "gpt-5-mini",
       input: conversation
     });
 
