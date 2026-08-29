@@ -1,77 +1,83 @@
-const express=require("express");
-const http=require("http");
-const {Server}=require("socket.io");
-const path=require("path");
+const express = require("express");
+const path = require("path");
+const OpenAI = require("openai");
 
-const app=express();
-const server=http.createServer(app);
-const io=new Server(server);
-app.use(express.static(path.join(__dirname,"public")));
-app.get("/",(req,res)=>res.sendFile(path.join(__dirname,"index.html")));
+const app = express();
 
-let talkers=[];
-const listeners=new Map();
-const pairs=new Map();
+app.use(express.json());
 
-function clean(){
-  talkers=talkers.filter(id=>io.sockets.sockets.has(id));
-  for(const id of listeners.keys()){
-    if(!io.sockets.sockets.has(id)) listeners.delete(id);
-  }
-}
-function match(){
-  clean();
-  while(talkers.length && listeners.size){
-    const a=talkers.shift();
-    const it=listeners.keys().next();
-    if(it.done){talkers.unshift(a);return;}
-    const b=it.value;
-    if(!io.sockets.sockets.has(a)||!io.sockets.sockets.has(b)) continue;
-    listeners.delete(b);
-    const room=`room-${a}-${b}`;
-    pairs.set(a,{peer:b,room});
-    pairs.set(b,{peer:a,room});
-    io.to(a).emit("matched",{room,peer:io.sockets.sockets.get(b).data.name});
-    io.to(b).emit("matched",{room,peer:io.sockets.sockets.get(a).data.name});
-  }
-}
-io.on("connection",s=>{
-  s.on("join_queue",({role,name})=>{
-    s.data.role=role;
-    s.data.name=(name||"Anonymous").slice(0,30);
-    if(role==="talker"){
-      if(!talkers.includes(s.id)) talkers.push(s.id);
-      s.emit("waiting","Looking for someone who's available to listen…");
-    }else{
-      listeners.set(s.id,s.data.name);
-      s.emit("waiting","You're available. Waiting for someone who wants to talk…");
-    }
-    match();
-  });
-  s.on("send_message",({room,text})=>{
-    const p=pairs.get(s.id);
-    if(!p||p.room!==room) return;
-    text=String(text||"").trim().slice(0,1000);
-    if(text) io.to(room).emit("message",{text,sender:s.id});
-  });
-  s.on("end",()=>{
-    const p=pairs.get(s.id);
-    if(!p) return;
-    pairs.delete(s.id); pairs.delete(p.peer);
-    io.to(p.peer).emit("ended"); s.emit("ended");
-  });
-  s.on("cancel",()=>{
-    talkers=talkers.filter(x=>x!==s.id);
-    listeners.delete(s.id);
-  });
-  s.on("disconnect",()=>{
-    talkers=talkers.filter(x=>x!==s.id);
-    listeners.delete(s.id);
-    const p=pairs.get(s.id);
-    if(p){
-      pairs.delete(s.id); pairs.delete(p.peer);
-      io.to(p.peer).emit("ended");
-    }
-  });
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
-server.listen(process.env.PORT||3000,()=>console.log("TalkEase prototype running"));
+
+// Serve the frontend
+app.use(express.static(__dirname));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// AI listener
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message, history = [] } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        error: "Message is required"
+      });
+    }
+
+    const conversation = [
+      {
+        role: "developer",
+        content: `
+You are an empathetic AI listener in a listening/support app.
+
+Your job is to genuinely listen and respond to what the person actually says.
+
+Do not repeat a generic response every time.
+Do not always ask "what part feels hardest?"
+Do not pretend to be a human.
+Do not diagnose mental-health conditions.
+
+Respond naturally to the person's specific message.
+Acknowledge their feelings when appropriate.
+If they ask a question, answer the question rather than ignoring it.
+If they are simply sharing something, respond supportively.
+Keep responses conversational and reasonably short.
+
+If the person appears to be in immediate danger or talks about harming themselves or someone else,
+encourage them to contact emergency services or an appropriate crisis service and seek immediate human help.
+        `
+      },
+      ...history,
+      {
+        role: "user",
+        content: message
+      }
+    ];
+
+    const response = await client.responses.create({
+      model: "gpt-5.6-luna",
+      input: conversation
+    });
+
+    res.json({
+      reply: response.output_text
+    });
+
+  } catch (error) {
+    console.error("OpenAI error:", error);
+
+    res.status(500).json({
+      error: "Unable to get an AI response"
+    });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`TalkEase prototype running on port ${PORT}`);
+});
