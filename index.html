@@ -99,6 +99,7 @@ h1{font-size:31px;line-height:1.1;margin:20px 0 10px}h2{font-size:24px;margin:8p
 <script src="/socket.io/socket.io.js"></script>
 <script>
 let socket=null,role='talker',room=null,t=1200,timer=null,aiActive=false,humanWaiting=false;
+let aiHistory=[];
 
 function show(id){document.querySelectorAll('.s').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on')}
 function setup(r){role=r;document.getElementById('st').textContent=r==='talker'?'Let’s find someone to listen':'Let’s make yourself available';show('setup')}
@@ -118,21 +119,67 @@ function join(){
  socket.on('message',x=>addHuman(x.text,x.sender===socket.id));
  socket.on('ended',()=>{clearInterval(timer);show('ended')});
 }
-function startAI(){aiActive=true;show('aiScreen');addAI("I’m here with you. What’s been weighing on you?")}
-function sendAI(){
- let i=document.getElementById('aimsg'),x=i.value.trim();if(!x)return;
- addAIUser(x);i.value='';
- setTimeout(()=>{addAI(aiReply(x));if(humanWaiting)setTimeout(()=>show('handoff'),800)},650)
+function startAI(){
+  aiActive=true;
+  aiHistory=[];
+  show('aiScreen');
+  addAI("I’m here with you. What’s been weighing on you?");
+}
+async function sendAI(){
+  let i=document.getElementById('aimsg');
+  let x=i.value.trim();
+
+  if(!x)return;
+
+  addAIUser(x);
+  i.value='';
+
+  aiHistory.push({
+    role:"user",
+    content:x
+  });
+
+  try {
+    const response = await fetch("/api/chat", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        message:x,
+        history:aiHistory
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data.error || "AI request failed");
+    }
+
+    const reply = data.reply;
+
+    aiHistory.push({
+      role:"assistant",
+      content:reply
+    });
+
+    addAI(reply);
+
+    if(humanWaiting){
+      setTimeout(()=>show('handoff'),800);
+    }
+
+  } catch(error) {
+    console.error("AI error:",error);
+
+    addAI(
+      "I'm having trouble connecting right now. Please try sending that again."
+    );
+  }
 }
 function addAI(x){let d=document.createElement('div');d.className='b ai';d.innerHTML='<b>AI Listener</b><br>'+escapeHtml(x);let m=document.getElementById('aiMsgs');m.appendChild(d);m.scrollTop=m.scrollHeight}
 function addAIUser(x){let d=document.createElement('div');d.className='b me';d.textContent=x;let m=document.getElementById('aiMsgs');m.appendChild(d);m.scrollTop=m.scrollHeight}
-function aiReply(x){
- x=x.toLowerCase();
- if(x.includes('alone')||x.includes('lonely'))return"That sounds lonely. You don't have to solve everything right now. I'm listening.";
- if(x.includes('work')||x.includes('hostel')||x.includes('job'))return"It sounds like you're carrying a lot. Tell me a little more about what happened.";
- if(x.includes('sad')||x.includes('bad')||x.includes('difficult'))return"I'm sorry you're having a difficult time. You can take your time and share as much or as little as you want.";
- return"Thank you for telling me. I’m listening — what part of this feels hardest for you right now?"
-}
 function humanPrompt(){if(humanWaiting)show('handoff');else alert('A human listener is not available yet. I can stay with you while you wait.')}
 function continueAI(){show('aiScreen')}
 function acceptHuman(){aiActive=false;show('chatScreen');startTimer();addHuman("Hi. I’m your human listener. I’m here to listen.",false)}
