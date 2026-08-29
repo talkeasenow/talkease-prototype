@@ -51,9 +51,12 @@ If the person appears to be in immediate danger or talks about harming themselve
 encourage them to contact emergency services or an appropriate crisis service and seek immediate human help.
     `
   },
-  ...history
+  ...history,
+  {
+    role: "user",
+    content: message
+  }
 ];
-
     const response = await client.responses.create({
       model: "gpt-5-mini",
       input: conversation
