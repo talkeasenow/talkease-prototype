@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TalkEase — Final Prototype</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f0fb;font-family:system-ui,-apple-system,sans-serif;color:#19162b}
+.phone{max-width:390px;height:92vh;min-height:650px;margin:4vh auto;background:#fff;border:8px solid #17162a;border-radius:36px;overflow:hidden;position:relative}
+.s{display:none;height:100%;background:#f7f5fc}.s.on{display:block}.c{padding:28px 22px}
+.logo{width:50px;height:50px;border-radius:15px;background:#7357e8;color:#fff;display:grid;place-items:center;font-size:25px}
+h1{font-size:31px;line-height:1.1;margin:20px 0 10px}h2{font-size:24px;margin:8px 0}p{color:#77738a;line-height:1.5}
+.btn{width:100%;padding:15px;border:0;border-radius:15px;background:#7357e8;color:#fff;font-weight:700;font-size:15px;margin-top:10px;cursor:pointer}
+.sec{background:#ebe7fb;color:#5c45c4}.ghost{background:transparent;color:#6c6779}
+.input{width:100%;padding:14px;border:1px solid #e3dfed;border-radius:13px;margin:7px 0}
+.wait{text-align:center;padding:65px 25px}.orb{width:150px;height:150px;border:1px solid #cfc5fa;border-radius:50%;margin:30px auto;display:grid;place-items:center}
+.orb b{width:22px;height:22px;background:#7357e8;border-radius:50%}
+.top{padding:13px;background:#fff;border-bottom:1px solid #e3dfed;display:flex;gap:10px;align-items:center}
+.avatar{width:40px;height:40px;border-radius:50%;background:#d9ceff;display:grid;place-items:center}
+.chat{height:calc(100% - 60px);padding:15px 13px 78px;overflow:auto}
+.b{max-width:82%;padding:11px 13px;border-radius:17px;margin:9px 0;background:#fff;border:1px solid #e3dfed;font-size:14px;line-height:1.4}
+.me{margin-left:auto;background:#7357e8;color:#fff;border:0}.ai{background:#eeeafd;border-color:#ddd5ff}
+.bar{position:absolute;bottom:0;left:0;right:0;padding:9px;background:#fff;display:flex;gap:7px;border-top:1px solid #e3dfed}
+.bar input{flex:1;border:1px solid #e3dfed;border-radius:20px;padding:11px}.bar button{border:0;border-radius:50%;width:44px;background:#7357e8;color:#fff}
+.pill{font-size:11px;background:#eeeafd;padding:6px 9px;border-radius:99px;color:#5d49b8}
+.notice{background:#fff;border:1px solid #ddd5ff;border-radius:16px;padding:15px;margin:12px 0}
+.green{color:#15965a}.stars{font-size:34px;letter-spacing:3px}
+</style>
+</head>
+<body>
+<div class="phone">
+
+<section id="home" class="s on"><div class="c">
+<div style="height:20px"></div><div class="logo">♡</div>
+<h1>You don't have to<br>feel alone.</h1>
+<p>Talk to someone who's willing to listen — without judgment, pressure or dating.</p>
+<div style="height:45px"></div>
+<button class="btn" onclick="setup('talker')">I need someone to talk to</button>
+<button class="btn sec" onclick="setup('listener')">I want to listen</button>
+<p style="text-align:center;font-size:12px;margin-top:20px">Human connection • AI backup • Not therapy</p>
+</div></section>
+
+<section id="setup" class="s"><div class="c">
+<h2 id="st">Let's find someone</h2>
+<p>Choose a display name. You don't need to use your real name.</p>
+<input id="name" class="input" placeholder="e.g. Alex">
+<div class="notice"><b>How this test works</b><p style="font-size:12px;margin:6px 0">If no human listener is available, the AI listener can stay with you while you wait. When a human becomes available, you can switch.</p></div>
+<button class="btn" onclick="join()">Continue</button>
+<button class="btn ghost" onclick="show('home')">Back</button>
+</div></section>
+
+<section id="wait" class="s"><div class="wait">
+<span class="pill" id="wt">Finding a listener</span><h2>Finding someone...</h2>
+<p id="wm">Looking for someone who's available to listen.</p>
+<div class="orb"><b></b></div>
+<div id="aiOffer" class="notice" style="display:none;text-align:left">
+<b>No human listener yet</b>
+<p style="font-size:12px;margin:6px 0">You don't have to wait alone. An AI listener can stay with you until a human becomes available.</p>
+<button class="btn" onclick="startAI()">Talk to AI while I wait</button>
+</div>
+<button class="btn ghost" onclick="cancel()">Cancel</button>
+</div></section>
+
+<section id="aiScreen" class="s"><div class="top">
+<div class="avatar">✦</div><div style="flex:1"><b>AI Listener</b><div style="font-size:11px">AI • Not a human</div></div>
+<span class="pill">Waiting for human</span><button onclick="humanPrompt()" style="border:0;background:transparent">⋮</button>
+</div>
+<div id="aiMsgs" class="chat"><div class="b ai"><b>AI Listener</b><br>I'm an AI listener. I can stay with you while we look for a human listener. You can tell me what's on your mind.</div></div>
+<div class="bar"><input id="aimsg" placeholder="Tell me what's on your mind..." onkeydown="if(event.key==='Enter')sendAI()"><button onclick="sendAI()">➤</button></div>
+</section>
+
+<section id="handoff" class="s"><div class="c" style="text-align:center;padding-top:65px">
+<div style="font-size:52px">👂</div><h2>A human listener is available.</h2>
+<p>Someone is ready to listen. Would you like to continue with them?</p>
+<div class="notice" style="text-align:left"><b>Human listener</b><p style="font-size:12px;margin:5px 0">Available now • Conversation up to 20 minutes</p></div>
+<button class="btn" onclick="acceptHuman()">Connect me</button>
+<button class="btn sec" onclick="continueAI()">Stay with AI</button>
+</div></section>
+
+<section id="chatScreen" class="s"><div class="top">
+<div class="avatar">👂</div><div style="flex:1"><b id="peer">Human listener</b><div style="font-size:11px" class="green">● Connected</div></div>
+<span class="pill" id="tm">20:00</span><button onclick="endChat()" style="border:0;background:transparent;font-size:16px">✕</button>
+</div>
+<div id="msgs" class="chat"><div class="b"><b>Listener</b><br>Hi. I'm here to listen. Take your time.</div></div>
+<div class="bar"><input id="msg" placeholder="Type a message..." onkeydown="if(event.key==='Enter')send()"><button onclick="send()">➤</button></div>
+</section>
+
+<section id="ended" class="s"><div class="c" style="text-align:center;padding-top:85px">
+<div style="font-size:55px">💜</div><h2>Conversation ended</h2><p>Thank you for taking the time to connect.</p>
+<button class="btn" onclick="show('feedback')">Give feedback</button><button class="btn ghost" onclick="location.reload()">Start again</button>
+</div></section>
+
+<section id="feedback" class="s"><div class="c" style="text-align:center;padding-top:60px">
+<div style="font-size:48px">★</div><h2>How was your experience?</h2>
+<p>Did TalkEase make it easier to have someone to talk to?</p><div class="stars">☆ ☆ ☆ ☆ ☆</div>
+<button class="btn" onclick="show('home')">Submit feedback</button>
+</div></section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let socket=null,role='talker',room=null,t=1200,timer=null,aiActive=false,humanWaiting=false;
+
+function show(id){document.querySelectorAll('.s').forEach(x=>x.classList.remove('on'));document.getElementById(id).classList.add('on')}
+function setup(r){role=r;document.getElementById('st').textContent=r==='talker'?'Let’s find someone to listen':'Let’s make yourself available';show('setup')}
+function join(){
+ socket=io();
+ socket.on('connect',()=>socket.emit('join_queue',{role,name:document.getElementById('name').value||'Anonymous'}));
+ socket.on('waiting',x=>{
+   document.getElementById('wm').textContent=x;
+   document.getElementById('wt').textContent=role==='talker'?'Talk request':'Listening';
+   show('wait');
+   if(role==='talker')setTimeout(()=>{if(document.getElementById('wait').classList.contains('on'))document.getElementById('aiOffer').style.display='block'},3500);
+ });
+ socket.on('matched',x=>{
+   room=x.room;humanWaiting=true;document.getElementById('peer').textContent=x.peer||'Human listener';
+   if(aiActive)show('handoff');else{show('chatScreen');startTimer()}
+ });
+ socket.on('message',x=>addHuman(x.text,x.sender===socket.id));
+ socket.on('ended',()=>{clearInterval(timer);show('ended')});
+}
+function startAI(){aiActive=true;show('aiScreen');addAI("I’m here with you. What’s been weighing on you?")}
+function sendAI(){
+ let i=document.getElementById('aimsg'),x=i.value.trim();if(!x)return;
+ addAIUser(x);i.value='';
+ setTimeout(()=>{addAI(aiReply(x));if(humanWaiting)setTimeout(()=>show('handoff'),800)},650)
+}
+function addAI(x){let d=document.createElement('div');d.className='b ai';d.innerHTML='<b>AI Listener</b><br>'+escapeHtml(x);let m=document.getElementById('aiMsgs');m.appendChild(d);m.scrollTop=m.scrollHeight}
+function addAIUser(x){let d=document.createElement('div');d.className='b me';d.textContent=x;let m=document.getElementById('aiMsgs');m.appendChild(d);m.scrollTop=m.scrollHeight}
+function aiReply(x){
+ x=x.toLowerCase();
+ if(x.includes('alone')||x.includes('lonely'))return"That sounds lonely. You don't have to solve everything right now. I'm listening.";
+ if(x.includes('work')||x.includes('hostel')||x.includes('job'))return"It sounds like you're carrying a lot. Tell me a little more about what happened.";
+ if(x.includes('sad')||x.includes('bad')||x.includes('difficult'))return"I'm sorry you're having a difficult time. You can take your time and share as much or as little as you want.";
+ return"Thank you for telling me. I’m listening — what part of this feels hardest for you right now?"
+}
+function humanPrompt(){if(humanWaiting)show('handoff');else alert('A human listener is not available yet. I can stay with you while you wait.')}
+function continueAI(){show('aiScreen')}
+function acceptHuman(){aiActive=false;show('chatScreen');startTimer();addHuman("Hi. I’m your human listener. I’m here to listen.",false)}
+function send(){let i=document.getElementById('msg'),x=i.value.trim();if(x&&socket&&room)socket.emit('send_message',{room,text:x});i.value=''}
+function addHuman(x,me){let d=document.createElement('div');d.className='b '+(me?'me':'');d.textContent=x;let m=document.getElementById('msgs');m.appendChild(d);m.scrollTop=m.scrollHeight}
+function startTimer(){t=1200;clearInterval(timer);timer=setInterval(()=>{t--;document.getElementById('tm').textContent=Math.floor(t/60)+':'+String(t%60).padStart(2,'0');if(t<=0)endChat()},1000)}
+function endChat(){if(socket)socket.emit('end');clearInterval(timer);show('ended')}
+function cancel(){if(socket){socket.emit('cancel');socket.disconnect()}show('home')}
+function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+</script>
+</div></body></html>
