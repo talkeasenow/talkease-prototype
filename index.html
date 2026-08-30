@@ -1,223 +1,254 @@
 <!doctype html>
 <html lang="en">
+
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TalkEase — Final Prototype</title>
+
+<title>TalkEase — Prototype</title>
 
 <style>
-*{box-sizing:border-box}
-
-body{
-  margin:0;
-  background:#f3f0fb;
-  font-family:system-ui,-apple-system,sans-serif;
-  color:#19162b
+* {
+  box-sizing: border-box;
 }
 
-.phone{
-  max-width:390px;
-  height:92vh;
-  min-height:650px;
-  margin:4vh auto;
-  background:#fff;
-  border:8px solid #17162a;
-  border-radius:36px;
-  overflow:hidden;
-  position:relative
+body {
+  margin: 0;
+  background: #f3f0fb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #19162b;
 }
 
-.s{
-  display:none;
-  height:100%;
-  background:#f7f5fc
+.phone {
+  max-width: 390px;
+  height: 92vh;
+  min-height: 650px;
+  margin: 4vh auto;
+  background: #fff;
+  border: 8px solid #17162a;
+  border-radius: 36px;
+  overflow: hidden;
+  position: relative;
 }
 
-.s.on{
-  display:block
+.s {
+  display: none;
+  height: 100%;
+  background: #f7f5fc;
 }
 
-.c{
-  padding:28px 22px
+.s.on {
+  display: block;
 }
 
-.logo{
-  width:50px;
-  height:50px;
-  border-radius:15px;
-  background:#7357e8;
-  color:#fff;
-  display:grid;
-  place-items:center;
-  font-size:25px
+.c {
+  padding: 28px 22px;
 }
 
-h1{
-  font-size:31px;
-  line-height:1.1;
-  margin:20px 0 10px
+.logo {
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  background: #7357e8;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 25px;
 }
 
-h2{
-  font-size:24px;
-  margin:8px 0
+h1 {
+  font-size: 31px;
+  line-height: 1.1;
+  margin: 20px 0 10px;
 }
 
-p{
-  color:#77738a;
-  line-height:1.5
+h2 {
+  font-size: 24px;
+  margin: 8px 0;
 }
 
-.btn{
-  width:100%;
-  padding:15px;
-  border:0;
-  border-radius:15px;
-  background:#7357e8;
-  color:#fff;
-  font-weight:700;
-  font-size:15px;
-  margin-top:10px;
-  cursor:pointer
+p {
+  color: #77738a;
+  line-height: 1.5;
 }
 
-.sec{
-  background:#ebe7fb;
-  color:#5c45c4
+.btn {
+  width: 100%;
+  padding: 15px;
+  border: 0;
+  border-radius: 15px;
+  background: #7357e8;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  margin-top: 10px;
+  cursor: pointer;
 }
 
-.ghost{
-  background:transparent;
-  color:#6c6779
+.btn:active {
+  transform: scale(.99);
 }
 
-.input{
-  width:100%;
-  padding:14px;
-  border:1px solid #e3dfed;
-  border-radius:13px;
-  margin:7px 0
+.sec {
+  background: #ebe7fb;
+  color: #5c45c4;
 }
 
-.wait{
-  text-align:center;
-  padding:65px 25px
+.ghost {
+  background: transparent;
+  color: #6c6779;
 }
 
-.orb{
-  width:150px;
-  height:150px;
-  border:1px solid #cfc5fa;
-  border-radius:50%;
-  margin:30px auto;
-  display:grid;
-  place-items:center
+.input {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #e3dfed;
+  border-radius: 13px;
+  margin: 7px 0;
+  font-size: 15px;
 }
 
-.orb b{
-  width:22px;
-  height:22px;
-  background:#7357e8;
-  border-radius:50%
+.wait {
+  text-align: center;
+  padding: 65px 25px;
 }
 
-.top{
-  padding:13px;
-  background:#fff;
-  border-bottom:1px solid #e3dfed;
-  display:flex;
-  gap:10px;
-  align-items:center
+.orb {
+  width: 150px;
+  height: 150px;
+  border: 1px solid #cfc5fa;
+  border-radius: 50%;
+  margin: 30px auto;
+  display: grid;
+  place-items: center;
 }
 
-.avatar{
-  width:40px;
-  height:40px;
-  border-radius:50%;
-  background:#d9ceff;
-  display:grid;
-  place-items:center
+.orb b {
+  width: 22px;
+  height: 22px;
+  background: #7357e8;
+  border-radius: 50%;
 }
 
-.chat{
-  height:calc(100% - 60px);
-  padding:15px 13px 78px;
-  overflow:auto
+.top {
+  padding: 13px;
+  background: #fff;
+  border-bottom: 1px solid #e3dfed;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-.b{
-  max-width:82%;
-  padding:11px 13px;
-  border-radius:17px;
-  margin:9px 0;
-  background:#fff;
-  border:1px solid #e3dfed;
-  font-size:14px;
-  line-height:1.4
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #d9ceff;
+  display: grid;
+  place-items: center;
 }
 
-.me{
-  margin-left:auto;
-  background:#7357e8;
-  color:#fff;
-  border:0
+.chat {
+  height: calc(100% - 60px);
+  padding: 15px 13px 78px;
+  overflow: auto;
 }
 
-.ai{
-  background:#eeeafd;
-  border-color:#ddd5ff
+.b {
+  max-width: 82%;
+  padding: 11px 13px;
+  border-radius: 17px;
+  margin: 9px 0;
+  background: #fff;
+  border: 1px solid #e3dfed;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
 }
 
-.bar{
-  position:absolute;
-  bottom:0;
-  left:0;
-  right:0;
-  padding:9px;
-  background:#fff;
-  display:flex;
-  gap:7px;
-  border-top:1px solid #e3dfed
+.me {
+  margin-left: auto;
+  background: #7357e8;
+  color: #fff;
+  border: 0;
 }
 
-.bar input{
-  flex:1;
-  border:1px solid #e3dfed;
-  border-radius:20px;
-  padding:11px
+.ai {
+  background: #eeeafd;
+  border-color: #ddd5ff;
 }
 
-.bar button{
-  border:0;
-  border-radius:50%;
-  width:44px;
-  background:#7357e8;
-  color:#fff
+.bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 9px;
+  background: #fff;
+  display: flex;
+  gap: 7px;
+  border-top: 1px solid #e3dfed;
 }
 
-.pill{
-  font-size:11px;
-  background:#eeeafd;
-  padding:6px 9px;
-  border-radius:99px;
-  color:#5d49b8
+.bar input {
+  flex: 1;
+  border: 1px solid #e3dfed;
+  border-radius: 20px;
+  padding: 11px;
+  font-size: 14px;
+  min-width: 0;
 }
 
-.notice{
-  background:#fff;
-  border:1px solid #ddd5ff;
-  border-radius:16px;
-  padding:15px;
-  margin:12px 0
+.bar button {
+  border: 0;
+  border-radius: 50%;
+  width: 44px;
+  background: #7357e8;
+  color: #fff;
+  cursor: pointer;
 }
 
-.green{
-  color:#15965a
+.pill {
+  font-size: 11px;
+  background: #eeeafd;
+  padding: 6px 9px;
+  border-radius: 99px;
+  color: #5d49b8;
+  white-space: nowrap;
 }
 
-.stars{
-  font-size:34px;
-  letter-spacing:3px
+.notice {
+  background: #fff;
+  border: 1px solid #ddd5ff;
+  border-radius: 16px;
+  padding: 15px;
+  margin: 12px 0;
+}
+
+.green {
+  color: #15965a;
+}
+
+.stars {
+  font-size: 34px;
+  letter-spacing: 3px;
+}
+
+.status {
+  font-size: 12px;
+  color: #77738a;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.error {
+  color: #b42318;
+  background: #fff0ee;
+  border: 1px solid #ffc7c0;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  margin-top: 10px;
 }
 </style>
 </head>
@@ -227,642 +258,672 @@ p{
 <div class="phone">
 
 <!-- HOME -->
+
 <section id="home" class="s on">
-  <div class="c">
 
-    <div style="height:20px"></div>
+<div class="c">
 
-    <div class="logo">♡</div>
+<div style="height:20px"></div>
 
-    <h1>You don't have to<br>feel alone.</h1>
+<div class="logo">♡</div>
 
-    <p>
-      Talk to someone who's willing to listen —
-      without judgment, pressure or dating.
-    </p>
+<h1>
+You don't have to<br>
+feel alone.
+</h1>
 
-    <div style="height:45px"></div>
+<p>
+Talk to someone who's willing to listen —
+without judgment, pressure or dating.
+</p>
 
-    <button class="btn" onclick="setup('talker')">
-      I need someone to talk to
-    </button>
+<div style="height:45px"></div>
 
-    <button class="btn sec" onclick="setup('listener')">
-      I want to listen
-    </button>
+<button class="btn" onclick="setup('talker')">
+I need someone to talk to
+</button>
 
-    <p style="text-align:center;font-size:12px;margin-top:20px">
-      Human connection • AI backup • Not therapy
-    </p>
+<button class="btn sec" onclick="setup('listener')">
+I want to listen
+</button>
 
-  </div>
+<p style="text-align:center;font-size:12px;margin-top:20px">
+Human connection • AI backup • Not therapy
+</p>
+
+</div>
+
 </section>
 
 
 <!-- SETUP -->
+
 <section id="setup" class="s">
-  <div class="c">
 
-    <h2 id="st">Let's find someone</h2>
+<div class="c">
 
-    <p>
-      Choose a display name. You don't need to use your real name.
-    </p>
+<h2 id="st">
+Let's find someone to listen
+</h2>
 
-    <input
-      id="name"
-      class="input"
-      placeholder="e.g. Alex"
-    >
+<p>
+Choose a display name. You don't need to use your real name.
+</p>
 
-    <div class="notice">
+<input
+id="name"
+class="input"
+placeholder="e.g. Alex"
+/>
 
-      <b>How this test works</b>
+<div class="notice">
 
-      <p style="font-size:12px;margin:6px 0">
-        If no human listener is available, the AI listener can stay
-        with you while you wait. When a human becomes available,
-        you can switch.
-      </p>
+<b>How this test works</b>
 
-    </div>
+<p style="font-size:12px;margin:6px 0">
 
-    <button class="btn" onclick="join()">
-      Continue
-    </button>
+If no human listener is available,
+the AI listener can stay with you
+while you wait.
 
-    <button class="btn ghost" onclick="show('home')">
-      Back
-    </button>
+</p>
 
-  </div>
+</div>
+
+<button class="btn" onclick="join()">
+Continue
+</button>
+
+<button class="btn ghost" onclick="show('home')">
+Back
+</button>
+
+<div id="setupError"></div>
+
+</div>
+
 </section>
 
 
 <!-- WAITING -->
+
 <section id="wait" class="s">
 
-  <div class="wait">
+<div class="wait">
 
-    <span class="pill" id="wt">
-      Finding a listener
-    </span>
+<span class="pill" id="wt">
+Finding a listener
+</span>
 
-    <h2>Finding someone...</h2>
+<h2>
+Finding someone...
+</h2>
 
-    <p id="wm">
-      Looking for someone who's available to listen.
-    </p>
+<p id="wm">
+Looking for someone who's available to listen.
+</p>
 
-    <div class="orb">
-      <b></b>
-    </div>
+<div class="orb">
+<b></b>
+</div>
 
-    <div
-      id="aiOffer"
-      class="notice"
-      style="display:none;text-align:left"
-    >
+<div
+id="aiOffer"
+class="notice"
+style="display:none;text-align:left"
+>
 
-      <b>No human listener yet</b>
+<b>No human listener yet</b>
 
-      <p style="font-size:12px;margin:6px 0">
-        You don't have to wait alone. An AI listener can stay
-        with you until a human becomes available.
-      </p>
+<p style="font-size:12px;margin:6px 0">
 
-      <button class="btn" onclick="startAI()">
-        Talk to AI while I wait
-      </button>
+You don't have to wait alone.
+An AI listener can stay with you
+until a human becomes available.
 
-    </div>
+</p>
 
-    <button class="btn ghost" onclick="cancel()">
-      Cancel
-    </button>
+<button class="btn" onclick="startAI()">
+Talk to AI while I wait
+</button>
 
-  </div>
+</div>
+
+<button class="btn ghost" onclick="cancel()">
+Cancel
+</button>
+
+</div>
 
 </section>
 
 
 <!-- AI CHAT -->
+
 <section id="aiScreen" class="s">
 
-  <div class="top">
+<div class="top">
 
-    <div class="avatar">✦</div>
+<div class="avatar">
+✦
+</div>
 
-    <div style="flex:1">
-      <b>AI Listener</b>
-      <div style="font-size:11px">
-        AI • Not a human
-      </div>
-    </div>
+<div style="flex:1">
+<b>AI Listener</b>
 
-    <span class="pill">
-      Waiting for human
-    </span>
+<div style="font-size:11px">
+AI • Not a human
+</div>
+</div>
 
-    <button
-      onclick="humanPrompt()"
-      style="border:0;background:transparent"
-    >
-      ⋮
-    </button>
+<span class="pill">
+Waiting for human
+</span>
 
-  </div>
+<button
+onclick="humanPrompt()"
+style="border:0;background:transparent"
+>
+⋮
+</button>
 
-  <div id="aiMsgs" class="chat">
+</div>
 
-    <div class="b ai">
 
-      <b>AI Listener</b><br>
+<div id="aiMsgs" class="chat">
 
-      I'm an AI listener. I can stay with you while we look
-      for a human listener. You can tell me what's on your mind.
+<div class="b ai">
 
-    </div>
+<b>AI Listener</b>
+<br>
 
-  </div>
+I'm an AI listener. I can stay with you
+while we look for a human listener.
+You can tell me what's on your mind.
 
-  <div class="bar">
+</div>
 
-    <input
-      id="aimsg"
-      placeholder="Tell me what's on your mind..."
-      onkeydown="if(event.key==='Enter')sendAI()"
-    >
+</div>
 
-    <button onclick="sendAI()">
-      ➤
-    </button>
 
-  </div>
+<div class="bar">
+
+<input
+id="aimsg"
+placeholder="Tell me what's on your mind..."
+onkeydown="if(event.key==='Enter')sendAI()"
+/>
+
+<button onclick="sendAI()">
+➤
+</button>
+
+</div>
 
 </section>
 
 
-<!-- HUMAN HANDOFF -->
+<!-- HANDOFF -->
+
 <section id="handoff" class="s">
 
-  <div
-    class="c"
-    style="text-align:center;padding-top:65px"
-  >
+<div
+class="c"
+style="text-align:center;padding-top:65px"
+>
 
-    <div style="font-size:52px">
-      👂
-    </div>
+<div style="font-size:52px">
+👂
+</div>
 
-    <h2>
-      A human listener is available.
-    </h2>
+<h2>
+A human listener is available.
+</h2>
 
-    <p>
-      Someone is ready to listen.
-      Would you like to continue with them?
-    </p>
+<p>
+Someone is ready to listen.
+Would you like to continue with them?
+</p>
 
-    <div
-      class="notice"
-      style="text-align:left"
-    >
+<div
+class="notice"
+style="text-align:left"
+>
 
-      <b>Human listener</b>
+<b>
+Human listener
+</b>
 
-      <p style="font-size:12px;margin:5px 0">
-        Available now • Conversation up to 20 minutes
-      </p>
+<p
+style="font-size:12px;margin:5px 0"
+>
+Available now • Conversation up to 20 minutes
+</p>
 
-    </div>
+</div>
 
-    <button class="btn" onclick="acceptHuman()">
-      Connect me
-    </button>
+<button class="btn" onclick="acceptHuman()">
+Connect me
+</button>
 
-    <button class="btn sec" onclick="continueAI()">
-      Stay with AI
-    </button>
+<button class="btn sec" onclick="continueAI()">
+Stay with AI
+</button>
 
-  </div>
+</div>
 
 </section>
 
 
 <!-- HUMAN CHAT -->
+
 <section id="chatScreen" class="s">
 
-  <div class="top">
+<div class="top">
 
-    <div class="avatar">
-      👂
-    </div>
+<div class="avatar">
+👂
+</div>
 
-    <div style="flex:1">
+<div style="flex:1">
 
-      <b id="peer">
-        Human listener
-      </b>
+<b id="peer">
+Human listener
+</b>
 
-      <div
-        style="font-size:11px"
-        class="green"
-      >
-        ● Connected
-      </div>
+<div
+style="font-size:11px"
+class="green"
+>
+● Connected
+</div>
 
-    </div>
+</div>
 
-    <span class="pill" id="tm">
-      20:00
-    </span>
+<span class="pill" id="tm">
+20:00
+</span>
 
-    <button
-      onclick="endChat()"
-      style="border:0;background:transparent;font-size:16px"
-    >
-      ✕
-    </button>
+<button
+onclick="endChat()"
+style="border:0;background:transparent;font-size:16px"
+>
+✕
+</button>
 
-  </div>
+</div>
 
-  <div id="msgs" class="chat">
 
-    <div class="b">
+<div id="msgs" class="chat">
 
-      <b>Listener</b><br>
+<div class="b">
 
-      Hi. I'm here to listen.
-      Take your time.
+<b>Listener</b>
+<br>
 
-    </div>
+Hi. I'm here to listen.
+Take your time.
 
-  </div>
+</div>
 
-  <div class="bar">
+</div>
 
-    <input
-      id="msg"
-      placeholder="Type a message..."
-      onkeydown="if(event.key==='Enter')send()"
-    >
 
-    <button onclick="send()">
-      ➤
-    </button>
+<div class="bar">
 
-  </div>
+<input
+id="msg"
+placeholder="Type a message..."
+onkeydown="if(event.key==='Enter')send()"
+/>
+
+<button onclick="send()">
+➤
+</button>
+
+</div>
 
 </section>
 
 
 <!-- ENDED -->
+
 <section id="ended" class="s">
 
-  <div
-    class="c"
-    style="text-align:center;padding-top:85px"
-  >
+<div
+class="c"
+style="text-align:center;padding-top:85px"
+>
 
-    <div style="font-size:55px">
-      💜
-    </div>
+<div style="font-size:55px">
+💜
+</div>
 
-    <h2>
-      Conversation ended
-    </h2>
+<h2>
+Conversation ended
+</h2>
 
-    <p>
-      Thank you for taking the time to connect.
-    </p>
+<p>
+Thank you for taking the time to connect.
+</p>
 
-    <button
-      class="btn"
-      onclick="show('feedback')"
-    >
-      Give feedback
-    </button>
+<button
+class="btn"
+onclick="show('feedback')"
+>
+Give feedback
+</button>
 
-    <button
-      class="btn ghost"
-      onclick="location.reload()"
-    >
-      Start again
-    </button>
+<button
+class="btn ghost"
+onclick="location.reload()"
+>
+Start again
+</button>
 
-  </div>
+</div>
 
 </section>
 
 
 <!-- FEEDBACK -->
+
 <section id="feedback" class="s">
 
-  <div
-    class="c"
-    style="text-align:center;padding-top:60px"
-  >
+<div
+class="c"
+style="text-align:center;padding-top:60px"
+>
 
-    <div style="font-size:48px">
-      ★
-    </div>
+<div style="font-size:48px">
+★
+</div>
 
-    <h2>
-      How was your experience?
-    </h2>
+<h2>
+How was your experience?
+</h2>
 
-    <p>
-      Did TalkEase make it easier to have someone to talk to?
-    </p>
+<p>
+Did TalkEase make it easier
+to have someone to talk to?
+</p>
 
-    <div class="stars">
-      ☆ ☆ ☆ ☆ ☆
-    </div>
+<div class="stars">
+☆ ☆ ☆ ☆ ☆
+</div>
 
-    <button
-      class="btn"
-      onclick="show('home')"
-    >
-      Submit feedback
-    </button>
+<button
+class="btn"
+onclick="show('home')"
+>
+Submit feedback
+</button>
 
-  </div>
+</div>
 
 </section>
 
 
-<!-- SOCKET.IO -->
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
 
 let socket = null;
-let role = 'talker';
+
+let role = "talker";
+
 let room = null;
+
 let t = 1200;
+
 let timer = null;
+
 let aiActive = false;
+
 let humanWaiting = false;
+
 let aiHistory = [];
 
 
-/* SCREEN SWITCH */
+/* =========================================================
+   SCREEN CONTROL
+   ========================================================= */
 
-function show(id){
+function show(id) {
 
   document
-    .querySelectorAll('.s')
-    .forEach(x => x.classList.remove('on'));
+    .querySelectorAll(".s")
+    .forEach(x => x.classList.remove("on"));
 
   const screen = document.getElementById(id);
 
-  if(screen){
-    screen.classList.add('on');
+  if (screen) {
+    screen.classList.add("on");
   }
 }
 
 
-/* CHOOSE TALKER / LISTENER */
+/* =========================================================
+   SETUP
+   ========================================================= */
 
-function setup(r){
+function setup(r) {
 
   role = r;
 
-  document.getElementById('st').textContent =
-    r === 'talker'
+  document.getElementById("st").textContent =
+    r === "talker"
       ? "Let's find someone to listen"
       : "Let's make yourself available";
 
-  show('setup');
+  document.getElementById("setupError").innerHTML = "";
+
+  show("setup");
 }
 
 
-/* CONTINUE BUTTON */
+/* =========================================================
+   JOIN
+   ========================================================= */
 
-function join(){
+function join() {
 
-  const nameInput =
-    document.getElementById('name');
+  const name =
+    document.getElementById("name").value.trim()
+    || "Anonymous";
 
-  const displayName =
-    nameInput.value.trim() || 'Anonymous';
+  document.getElementById("setupError").innerHTML = "";
 
+  try {
 
-  /*
-    IMPORTANT:
+    if (socket) {
+      socket.disconnect();
+      socket = null;
+    }
 
-    We show the waiting screen immediately.
+    socket = io();
 
-    Previously the screen depended on a Socket.IO
-    "waiting" event. If Socket.IO wasn't connected,
-    Continue appeared to do nothing.
+    socket.on("connect", () => {
 
-    Now Continue always works.
-  */
+      console.log("Connected to server");
 
-  document.getElementById('wm').textContent =
-    'Looking for someone who is available to listen.';
+      socket.emit("join_queue", {
+        role,
+        name
+      });
 
-  document.getElementById('wt').textContent =
-    role === 'talker'
-      ? 'Talk request'
-      : 'Listening';
+    });
 
-  document.getElementById('aiOffer').style.display =
-    'none';
+    socket.on("connect_error", error => {
 
-  show('wait');
+      console.error("Socket error:", error);
 
+      document.getElementById("setupError").innerHTML =
+        '<div class="error">Could not connect to the server. Please try again.</div>';
 
-  /*
-    Show AI option after a short wait.
-  */
+    });
 
-  if(role === 'talker'){
+    socket.on("waiting", message => {
 
-    setTimeout(() => {
+      document.getElementById("wm").textContent =
+        message;
 
-      if(
-        document
-          .getElementById('wait')
-          .classList
-          .contains('on')
-      ){
+      document.getElementById("wt").textContent =
+        role === "talker"
+          ? "Talk request"
+          : "Listening";
 
-        document.getElementById('aiOffer')
-          .style.display = 'block';
+      show("wait");
+
+      if (role === "talker") {
+
+        setTimeout(() => {
+
+          if (
+            document
+              .getElementById("wait")
+              .classList
+              .contains("on")
+          ) {
+
+            document.getElementById("aiOffer").style.display =
+              "block";
+
+          }
+
+        }, 2000);
 
       }
 
-    },1500);
-
-  }
+    });
 
 
-  /*
-    Connect to Socket.IO if available.
-    This is only for the human-listener system.
-  */
+    socket.on("matched", x => {
 
-  if(typeof io === 'function'){
+      room = x.room;
 
-    try{
+      humanWaiting = true;
 
-      socket = io();
+      document.getElementById("peer").textContent =
+        x.peer || "Human listener";
 
-      socket.on('connect',() => {
+      if (aiActive) {
 
-        socket.emit('join_queue',{
-          role: role,
-          name: displayName
-        });
+        show("handoff");
 
-      });
+      } else {
 
+        show("chatScreen");
 
-      socket.on('waiting',x => {
+        startTimer();
 
-        if(x){
+      }
 
-          document.getElementById('wm')
-            .textContent = x;
-
-        }
-
-      });
+    });
 
 
-      socket.on('matched',x => {
+    socket.on("message", x => {
 
-        room = x.room;
-
-        humanWaiting = true;
-
-        document.getElementById('peer')
-          .textContent =
-          x.peer || 'Human listener';
-
-
-        if(aiActive){
-
-          show('handoff');
-
-        }else{
-
-          show('chatScreen');
-
-          startTimer();
-
-        }
-
-      });
-
-
-      socket.on('message',x => {
-
-        addHuman(
-          x.text,
-          x.sender === socket.id
-        );
-
-      });
-
-
-      socket.on('ended',() => {
-
-        clearInterval(timer);
-
-        show('ended');
-
-      });
-
-    }catch(error){
-
-      console.log(
-        'Socket connection unavailable:',
-        error
+      addHuman(
+        x.text,
+        x.sender === socket.id
       );
 
-    }
+    });
+
+
+    socket.on("ended", () => {
+
+      clearInterval(timer);
+
+      show("ended");
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    document.getElementById("setupError").innerHTML =
+      '<div class="error">Unable to start the connection.</div>';
 
   }
 
 }
 
 
-/* START AI */
+/* =========================================================
+   START AI
+   ========================================================= */
 
-function startAI(){
+function startAI() {
 
   aiActive = true;
 
   aiHistory = [];
 
-  show('aiScreen');
+  show("aiScreen");
 
   addAI(
-    "I’m here with you. What’s been weighing on you?"
+    "I'm here with you. What's been weighing on you?"
   );
 
 }
 
 
-/* SEND MESSAGE TO AI */
+/* =========================================================
+   SEND AI MESSAGE
+   ========================================================= */
 
-async function sendAI(){
+async function sendAI() {
 
   const input =
-    document.getElementById('aimsg');
+    document.getElementById("aimsg");
 
-  const message =
+  const text =
     input.value.trim();
 
-  if(!message){
+  if (!text) {
     return;
   }
 
+  addAIUser(text);
 
-  /* Show user's message */
-
-  addAIUser(message);
-
-  input.value = '';
-
-
-  /* Save user message */
+  input.value = "";
 
   aiHistory.push({
     role: "user",
-    content: message
+    content: text
   });
 
+  try {
 
-  try{
+    const response = await fetch(
+      "/api/chat",
+      {
+        method: "POST",
 
-    const response =
-      await fetch('/api/chat',{
-        method:'POST',
-
-        headers:{
-          'Content-Type':'application/json'
+        headers: {
+          "Content-Type": "application/json"
         },
 
-        body:JSON.stringify({
-          message: message,
+        body: JSON.stringify({
+          message: text,
           history: aiHistory
         })
-      });
+      }
+    );
 
 
     const data =
       await response.json();
 
 
-    if(!response.ok){
+    if (!response.ok) {
 
       throw new Error(
-        data.error || 'AI request failed'
+        data.error ||
+        "AI request failed"
       );
 
     }
@@ -872,41 +933,29 @@ async function sendAI(){
       data.reply;
 
 
-    /* Save AI response */
-
     aiHistory.push({
-      role:"assistant",
-      content:reply
+      role: "assistant",
+      content: reply
     });
 
-
-    /* Show AI response */
 
     addAI(reply);
 
 
-    /* Human becomes available */
-
-    if(humanWaiting){
+    if (humanWaiting) {
 
       setTimeout(() => {
-
-        show('handoff');
-
-      },800);
+        show("handoff");
+      }, 800);
 
     }
 
-  }catch(error){
+  } catch (error) {
 
-    console.error(
-      'AI error:',
-      error
-    );
-
+    console.error("AI error:", error);
 
     addAI(
-      "I'm having trouble connecting right now. Please try sending that again."
+      "I'm having trouble connecting right now. Please try again in a moment."
     );
 
   }
@@ -914,22 +963,24 @@ async function sendAI(){
 }
 
 
-/* ADD AI MESSAGE */
+/* =========================================================
+   AI MESSAGE UI
+   ========================================================= */
 
-function addAI(text){
+function addAI(text) {
 
   const d =
-    document.createElement('div');
+    document.createElement("div");
 
   d.className =
-    'b ai';
+    "b ai";
 
   d.innerHTML =
-    '<b>AI Listener</b><br>' +
+    "<b>AI Listener</b><br>" +
     escapeHtml(text);
 
   const messages =
-    document.getElementById('aiMsgs');
+    document.getElementById("aiMsgs");
 
   messages.appendChild(d);
 
@@ -939,21 +990,19 @@ function addAI(text){
 }
 
 
-/* ADD USER AI MESSAGE */
-
-function addAIUser(text){
+function addAIUser(text) {
 
   const d =
-    document.createElement('div');
+    document.createElement("div");
 
   d.className =
-    'b me';
+    "b me";
 
   d.textContent =
     text;
 
   const messages =
-    document.getElementById('aiMsgs');
+    document.getElementById("aiMsgs");
 
   messages.appendChild(d);
 
@@ -963,18 +1012,20 @@ function addAIUser(text){
 }
 
 
-/* HUMAN MENU */
+/* =========================================================
+   HUMAN HANDOFF
+   ========================================================= */
 
-function humanPrompt(){
+function humanPrompt() {
 
-  if(humanWaiting){
+  if (humanWaiting) {
 
-    show('handoff');
+    show("handoff");
 
-  }else{
+  } else {
 
     alert(
-      'A human listener is not available yet. I can stay with you while you wait.'
+      "A human listener is not available yet. I can stay with you while you wait."
     );
 
   }
@@ -982,79 +1033,75 @@ function humanPrompt(){
 }
 
 
-/* STAY WITH AI */
+function continueAI() {
 
-function continueAI(){
-
-  show('aiScreen');
+  show("aiScreen");
 
 }
 
 
-/* CONNECT TO HUMAN */
-
-function acceptHuman(){
+function acceptHuman() {
 
   aiActive = false;
 
-  show('chatScreen');
+  show("chatScreen");
 
   startTimer();
 
   addHuman(
-    "Hi. I’m your human listener. I’m here to listen.",
+    "Hi. I'm your human listener. I'm here to listen.",
     false
   );
 
 }
 
 
-/* SEND HUMAN MESSAGE */
+/* =========================================================
+   HUMAN CHAT
+   ========================================================= */
 
-function send(){
+function send() {
 
   const input =
-    document.getElementById('msg');
+    document.getElementById("msg");
 
   const text =
     input.value.trim();
 
-  if(
+  if (
     text &&
     socket &&
     room
-  ){
+  ) {
 
     socket.emit(
-      'send_message',
+      "send_message",
       {
-        room: room,
-        text: text
+        room,
+        text
       }
     );
 
   }
 
-  input.value = '';
+  input.value = "";
 
 }
 
 
-/* ADD HUMAN MESSAGE */
-
-function addHuman(text,me){
+function addHuman(text, me) {
 
   const d =
-    document.createElement('div');
+    document.createElement("div");
 
   d.className =
-    'b ' + (me ? 'me' : '');
+    "b " + (me ? "me" : "");
 
   d.textContent =
     text;
 
   const messages =
-    document.getElementById('msgs');
+    document.getElementById("msgs");
 
   messages.appendChild(d);
 
@@ -1064,61 +1111,63 @@ function addHuman(text,me){
 }
 
 
-/* TIMER */
+/* =========================================================
+   TIMER
+   ========================================================= */
 
-function startTimer(){
+function startTimer() {
 
   t = 1200;
 
   clearInterval(timer);
 
-  timer =
-    setInterval(() => {
+  document.getElementById("tm").textContent =
+    "20:00";
 
-      t--;
+  timer = setInterval(() => {
 
-      document.getElementById('tm')
-        .textContent =
-        Math.floor(t / 60) +
-        ':' +
-        String(t % 60).padStart(2,'0');
+    t--;
 
+    document.getElementById("tm").textContent =
+      Math.floor(t / 60) +
+      ":" +
+      String(t % 60).padStart(2, "0");
 
-      if(t <= 0){
+    if (t <= 0) {
 
-        endChat();
+      endChat();
 
-      }
+    }
 
-    },1000);
+  }, 1000);
 
 }
 
 
-/* END CHAT */
+/* =========================================================
+   END / CANCEL
+   ========================================================= */
 
-function endChat(){
+function endChat() {
 
-  if(socket){
+  if (socket) {
 
-    socket.emit('end');
+    socket.emit("end");
 
   }
 
   clearInterval(timer);
 
-  show('ended');
+  show("ended");
 
 }
 
 
-/* CANCEL */
+function cancel() {
 
-function cancel(){
+  if (socket) {
 
-  if(socket){
-
-    socket.emit('cancel');
+    socket.emit("cancel");
 
     socket.disconnect();
 
@@ -1126,27 +1175,28 @@ function cancel(){
 
   }
 
-  show('home');
+  show("home");
 
 }
 
 
-/* ESCAPE HTML */
+/* =========================================================
+   SECURITY
+   ========================================================= */
 
-function escapeHtml(s){
+function escapeHtml(text) {
 
-  return String(s).replace(
+  return String(text).replace(
     /[&<>"']/g,
-    function(m){
+    function(match) {
 
       return {
-        '&':'&amp;',
-        '<':'&lt;',
-        '>':'&gt;',
-        '"':'&quot;',
-        "'":'&#039;'
-
-      }[m];
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[match];
 
     }
   );
