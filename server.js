@@ -5,54 +5,78 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: "*"
-  }
-});
+const io = new Server(server);
 
 app.use(express.json());
-
-// Serve frontend
 app.use(express.static(__dirname));
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// =====================================================
-// GEMINI AI
-// =====================================================
+/*
+========================================================
+GEMINI AI
+========================================================
+*/
 
-app.post("/api/chat", async (req, res) => {
-  try {
-    const { message, history = [] } = req.body;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-    if (!message || !message.trim()) {
-      return res.status(400).json({
-        error: "Message is required"
-      });
-    }
+const GEMINI_MODEL = "gemini-3.6-flash";
 
-    const apiKey = process.env.GEMINI_API_KEY;
+const SYSTEM_INSTRUCTION = `
+You are an empathetic AI listener in the TalkEase listening/support app.
 
-    if (!apiKey) {
-      return res.status(500).json({
-        error: "GEMINI_API_KEY is not configured on the server"
-      });
-    }
+You are an AI, not a human.
 
-    const contents = [];
+Your job is to listen carefully and respond naturally to what the person actually says.
 
+Rules:
+
+- Respond to the person's specific message.
+- Do not repeat the same generic response.
+- Do not always ask "what part feels hardest?"
+- If the person asks a question, answer it.
+- If the person is sharing feelings, acknowledge them naturally.
+- Do not diagnose mental-health conditions.
+- Do not pretend to be a human.
+- Keep responses conversational, warm, supportive, and reasonably short.
+- Do not overuse questions.
+- Do not give long lectures unless the person asks for detail.
+
+If the person appears to be in immediate danger or talks about harming themselves
+or someone else, encourage them to seek immediate human help and contact appropriate
+local emergency or crisis services.
+`;
+
+/*
+Convert our frontend history into Gemini's format.
+Gemini uses:
+"user" for the person
+"model" for the AI
+*/
+
+function buildGeminiContents(history, message) {
+  const contents = [];
+
+  if (Array.isArray(history)) {
     for (const item of history) {
-      if (
-        item &&
-        (item.role === "user" || item.role === "assistant") &&
-        item.content
-      ) {
+      if (!item || !item.content) continue;
+
+      if (item.role === "user") {
         contents.push({
-          role: item.role === "assistant" ? "model" : "user",
+          role: "user",
+          parts: [
+            {
+              text: String(item.content)
+            }
+          ]
+        });
+      }
+
+      if (item.role === "assistant" || item.role === "model") {
+        contents.push({
+          role: "model",
           parts: [
             {
               text: String(item.content)
@@ -61,88 +85,102 @@ app.post("/api/chat", async (req, res) => {
         });
       }
     }
+  }
 
+  /*
+  Prevent the current message from being added twice.
+  */
+
+  const last = contents[contents.length - 1];
+
+  if (
+    !last ||
+    last.role !== "user" ||
+    last.parts[0].text !== String(message)
+  ) {
     contents.push({
       role: "user",
       parts: [
         {
-          text: message
+          text: String(message)
         }
       ]
     });
+  }
 
-    const systemInstruction = `
-You are an empathetic AI listener in a listening/support app called TalkEase.
+  return contents;
+}
 
-You are an AI, not a human. Never pretend to be a human.
+/*
+========================================================
+AI CHAT ROUTE
+========================================================
+*/
 
-Your job is to listen carefully and respond to what the person actually says.
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message, history = [] } = req.body;
 
-Rules:
-- Respond naturally to the person's specific message.
-- Do not repeat the same generic response every time.
-- Do not always ask "what part feels hardest?"
-- If the person asks a question, answer it.
-- If they are sharing something, respond supportively.
-- Acknowledge feelings when appropriate.
-- Keep responses warm, conversational, and reasonably short.
-- Do not diagnose mental-health conditions.
-- Do not claim to be a therapist.
-- Do not pretend to be a human listener.
-
-If the person appears to be in immediate danger or talks about harming
-themselves or someone else, encourage them to seek immediate human help
-and contact appropriate emergency or crisis services.
-
-You are providing supportive listening while the person waits for a
-possible human listener.
-`;
-
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
-        encodeURIComponent(apiKey),
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [
-              {
-                text: systemInstruction
-              }
-            ]
-          },
-          contents,
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 250
-          }
-        })
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Gemini API error:", data);
-
-      return res.status(500).json({
-        error:
-          data?.error?.message ||
-          "Gemini could not generate a response"
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({
+        error: "Message is required."
       });
     }
 
-    const reply = data?.candidates?.[0]?.content?.parts
-      ?.map(part => part.text || "")
-      .join("")
-      .trim();
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is missing.");
+
+      return res.status(500).json({
+        error: "Gemini API key is not configured on the server."
+      });
+    }
+
+    const contents = buildGeminiContents(history, message);
+
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/` +
+      `${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+
+    const geminiResponse = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [
+            {
+              text: SYSTEM_INSTRUCTION
+            }
+          ]
+        },
+        contents: contents
+      })
+    });
+
+    const data = await geminiResponse.json();
+
+    if (!geminiResponse.ok) {
+      console.error("Gemini API error:", data);
+
+      return res.status(geminiResponse.status).json({
+        error:
+          data?.error?.message ||
+          "Gemini could not generate a response."
+      });
+    }
+
+    const reply =
+      data?.candidates?.[0]?.content?.parts
+        ?.map(part => part.text || "")
+        .join("")
+        .trim();
 
     if (!reply) {
+      console.error("Gemini returned no text:", data);
+
       return res.status(500).json({
-        error: "Gemini returned an empty response"
+        error: "Gemini returned an empty response."
       });
     }
 
@@ -151,211 +189,231 @@ possible human listener.
     });
 
   } catch (error) {
-    console.error("Gemini connection error:", error);
+    console.error("AI server error:", error);
 
     res.status(500).json({
-      error: "Unable to connect to Gemini"
+      error: "Unable to connect to the AI right now."
     });
   }
 });
 
-// =====================================================
-// SOCKET.IO
-// =====================================================
+/*
+========================================================
+SOCKET.IO HUMAN LISTENER QUEUE
+========================================================
+*/
 
-const waitingTalkers = [];
-const waitingListeners = [];
+const talkers = [];
+const listeners = [];
+const rooms = new Map();
 
-io.on("connection", (socket) => {
+function removeFromQueue(socketId) {
+  const talkerIndex = talkers.findIndex(x => x.id === socketId);
+
+  if (talkerIndex !== -1) {
+    talkers.splice(talkerIndex, 1);
+  }
+
+  const listenerIndex = listeners.findIndex(x => x.id === socketId);
+
+  if (listenerIndex !== -1) {
+    listeners.splice(listenerIndex, 1);
+  }
+}
+
+function findQueueUser(queue, socketId) {
+  return queue.find(x => x.id === socketId);
+}
+
+function matchUsers() {
+  while (talkers.length > 0 && listeners.length > 0) {
+
+    const talker = talkers.shift();
+    const listener = listeners.shift();
+
+    const talkerSocket = io.sockets.sockets.get(talker.id);
+    const listenerSocket = io.sockets.sockets.get(listener.id);
+
+    if (!talkerSocket || !listenerSocket) {
+      continue;
+    }
+
+    const room = `room-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
+    talkerSocket.join(room);
+    listenerSocket.join(room);
+
+    rooms.set(room, {
+      talker: talker.id,
+      listener: listener.id
+    });
+
+    console.log(
+      "Matched:",
+      talker.id,
+      "<->",
+      listener.id,
+      "room:",
+      room
+    );
+
+    talkerSocket.emit("matched", {
+      room,
+      peer: listener.name || "Human listener"
+    });
+
+    listenerSocket.emit("matched", {
+      room,
+      peer: talker.name || "Talker"
+    });
+  }
+}
+
+/*
+========================================================
+SOCKET EVENTS
+========================================================
+*/
+
+io.on("connection", socket => {
 
   console.log("Socket connected:", socket.id);
 
-  socket.on("join_queue", ({ role, name }) => {
+  socket.on("join_queue", data => {
 
-    const displayName = name || "Anonymous";
+    const role = data?.role || "talker";
+    const name = data?.name || "Anonymous";
 
     console.log(
       "Join queue:",
       socket.id,
       role,
-      displayName
+      name
     );
 
-    socket.data.role = role;
-    socket.data.name = displayName;
-
-    // -----------------------------------------------
-    // TALKER
-    // -----------------------------------------------
-
-    if (role === "talker") {
-
-      // Check if a listener is already waiting
-      if (waitingListeners.length > 0) {
-
-        const listener = waitingListeners.shift();
-
-        const room = "room_" + socket.id + "_" + listener.id;
-
-        socket.join(room);
-        listener.join(room);
-
-        socket.data.room = room;
-        listener.data.room = room;
-
-        socket.emit("matched", {
-          room,
-          peer: listener.data.name || "Human listener"
-        });
-
-        listener.emit("matched", {
-          room,
-          peer: displayName
-        });
-
-        console.log("Matched:", room);
-
-      } else {
-
-        waitingTalkers.push(socket);
-
-        socket.emit(
-          "waiting",
-          "Looking for someone who's available to listen."
-        );
-
-        console.log("Talker waiting:", socket.id);
-      }
-
-      return;
-    }
-
-    // -----------------------------------------------
-    // LISTENER
-    // -----------------------------------------------
+    removeFromQueue(socket.id);
 
     if (role === "listener") {
 
-      // Check if a talker is waiting
-      if (waitingTalkers.length > 0) {
+      listeners.push({
+        id: socket.id,
+        name
+      });
 
-        const talker = waitingTalkers.shift();
+      socket.emit(
+        "waiting",
+        "You are available to listen. Waiting for someone to connect."
+      );
 
-        const room = "room_" + talker.id + "_" + socket.id;
+    } else {
 
-        talker.join(room);
-        socket.join(room);
+      talkers.push({
+        id: socket.id,
+        name
+      });
 
-        talker.data.room = room;
-        socket.data.room = room;
-
-        talker.emit("matched", {
-          room,
-          peer: displayName
-        });
-
-        socket.emit("matched", {
-          room,
-          peer: talker.data.name || "Talker"
-        });
-
-        console.log("Matched:", room);
-
-      } else {
-
-        waitingListeners.push(socket);
-
-        socket.emit(
-          "waiting",
-          "You're available to listen. Waiting for someone to connect."
-        );
-
-        console.log("Listener waiting:", socket.id);
-      }
+      socket.emit(
+        "waiting",
+        "Looking for someone who's available to listen."
+      );
     }
+
+    matchUsers();
   });
 
-  // ===================================================
-  // HUMAN CHAT MESSAGE
-  // ===================================================
+  socket.on("send_message", data => {
 
-  socket.on("send_message", ({ room, text }) => {
-
-    if (!room || !text || !text.trim()) {
+    if (!data || !data.room || !data.text) {
       return;
     }
 
-    io.to(room).emit("message", {
-      text: text.trim(),
+    const room = rooms.get(data.room);
+
+    if (!room) {
+      return;
+    }
+
+    io.to(data.room).emit("message", {
+      text: String(data.text),
       sender: socket.id
     });
   });
 
-  // ===================================================
-  // END CHAT
-  // ===================================================
-
   socket.on("end", () => {
 
-    const room = socket.data.room;
+    console.log("Chat ended:", socket.id);
 
-    if (room) {
-      io.to(room).emit("ended");
+    let roomToEnd = null;
+
+    for (const [room, members] of rooms.entries()) {
+
+      if (
+        members.talker === socket.id ||
+        members.listener === socket.id
+      ) {
+        roomToEnd = room;
+        break;
+      }
     }
 
-    removeFromQueues(socket);
+    if (roomToEnd) {
 
-    console.log("Chat ended:", socket.id);
+      io.to(roomToEnd).emit("ended");
+
+      rooms.delete(roomToEnd);
+    }
+
+    removeFromQueue(socket.id);
   });
-
-  // ===================================================
-  // CANCEL
-  // ===================================================
 
   socket.on("cancel", () => {
 
-    removeFromQueues(socket);
-
     console.log("Queue cancelled:", socket.id);
-  });
 
-  // ===================================================
-  // DISCONNECT
-  // ===================================================
+    removeFromQueue(socket.id);
+  });
 
   socket.on("disconnect", () => {
 
-    removeFromQueues(socket);
-
     console.log("Socket disconnected:", socket.id);
+
+    removeFromQueue(socket.id);
+
+    for (const [room, members] of rooms.entries()) {
+
+      if (
+        members.talker === socket.id ||
+        members.listener === socket.id
+      ) {
+
+        io.to(room).emit("ended");
+
+        rooms.delete(room);
+      }
+    }
   });
 });
 
-// =====================================================
-// REMOVE SOCKET FROM WAITING QUEUES
-// =====================================================
+/*
+========================================================
+START SERVER
+========================================================
+*/
 
-function removeFromQueues(socket) {
-
-  let index = waitingTalkers.indexOf(socket);
-
-  if (index !== -1) {
-    waitingTalkers.splice(index, 1);
-  }
-
-  index = waitingListeners.indexOf(socket);
-
-  if (index !== -1) {
-    waitingListeners.splice(index, 1);
-  }
-}
-
-// =====================================================
-// START SERVER
-// =====================================================
-
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 server.listen(PORT, () => {
-  console.log(`TalkEase prototype running on port ${PORT}`);
+  console.log(
+    `TalkEase prototype running on port ${PORT}`
+  );
+
+  console.log(
+    `Gemini model: ${GEMINI_MODEL}`
+  );
+
+  console.log(
+    `Gemini API key configured: ${GEMINI_API_KEY ? "YES" : "NO"}`
+  );
 });
