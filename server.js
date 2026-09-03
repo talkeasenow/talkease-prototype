@@ -417,3 +417,26 @@ server.listen(PORT, () => {
     `Gemini API key configured: ${GEMINI_API_KEY ? "YES" : "NO"}`
   );
 });
+
+
+// --- TalkEase safety events (additive) ---
+const safetyReports = [];
+const blockedPairs = new Set();
+
+io.on('connection', (socket) => {
+  socket.on('safety_report', (payload = {}) => {
+    safetyReports.push({
+      socketId: socket.id,
+      reason: String(payload.reason || 'unspecified').slice(0, 120),
+      at: new Date().toISOString()
+    });
+    // Keep reports in memory for the prototype; production should persist securely.
+    console.log('[safety] report received', socket.id, payload.reason || 'unspecified');
+  });
+
+  socket.on('safety_block', () => {
+    // Prototype-only block marker. A production implementation should persist
+    // the relationship against authenticated user IDs.
+    console.log('[safety] block requested', socket.id);
+  });
+});

@@ -28,3 +28,19 @@ This app needs a Node.js host with WebSocket/Socket.IO support. A static host su
 The AI fallback here is a prototype simulation using local scripted responses. It is not connected to a live AI model.
 
 Do not use this prototype for real sensitive conversations. Production requires authentication/privacy controls, secure transport, abuse prevention, moderation, reporting/blocking, crisis-safety flows, data retention policy, and a production AI integration.
+
+
+## Prototype Safety Layer
+
+This version adds an additive safety/consent layer while preserving the existing TalkEase matching and chat loop:
+
+- Age/consent gate before entering the experience
+- In-product safety & privacy information
+- Leave-conversation confirmation
+- Report and block actions
+- Listener safety training + short quiz
+- Explicit 20-minute timer behavior copy
+- Basic crisis-safety messaging
+- Prototype server events for safety reports/blocks
+
+**Important:** The report/block storage, identity verification, moderation review, age verification, and crisis escalation are prototype implementations. They should be replaced with secure, authenticated, persistent systems before production.
