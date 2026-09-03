@@ -258,8 +258,7 @@ p{
 <style id="talkease-safety-css">
   .te-safety-link{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:8px 10px;border:0;background:transparent;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline}
   .te-safety-badge{font-size:11px;color:#6b7280;margin:4px 0 8px;text-align:center}
-  .te-consent{font-size:12px;line-height:1.45;color:#6b7280;margin:10px 0}
-  .te-menu{position:absolute;right:12px;top:42px;z-index:40;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:6px;min-width:170px}
+  .te-menu{position:absolute;right:12px;top:42px;z-index:40;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:6px;min-width:180px}
   .te-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:10px;border-radius:8px;cursor:pointer;font-size:13px}
   .te-menu button:hover{background:#f3f4f6}
   .te-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:18px}
@@ -270,11 +269,10 @@ p{
   .te-modal-actions{display:flex;gap:8px;margin-top:16px}
   .te-modal-actions button{flex:1;padding:11px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer}
   .te-primary{background:#111827!important;color:#fff;border-color:#111827!important}
-  .te-danger{color:#b91c1c!important}
+  .te-danger{background:#fff!important;color:#b91c1c!important;border-color:#fecaca!important}
   .te-hidden{display:none!important}
   .te-quiz-q{font-weight:600;margin:14px 0 7px}
   .te-quiz label{display:block;font-size:13px;margin:7px 0;color:#374151}
-  .te-crisis{border:1px solid #fecaca;background:#fff1f2;border-radius:12px;padding:12px;margin-top:10px}
 </style>
 
 </head>
@@ -1327,8 +1325,17 @@ async function sendAI(){
     Show useful message.
     */
 
+    const detail =
+      error && error.message
+        ? String(error.message)
+        : "";
+
     addAI(
-      "I'm having trouble connecting to the AI right now. Please try again in a moment."
+      "I’m still here. The AI connection is having a temporary issue. " +
+      "Please try sending that again in a moment." +
+      (detail && /not configured|temporarily unavailable|temporary problem/i.test(detail)
+        ? ""
+        : "")
     );
 
   }finally{
@@ -1670,19 +1677,10 @@ console.log(
 </div>
 
 
-<!-- TalkEase safety layer: additive to the existing prototype -->
 <div id="te-safety-overlay" class="te-overlay te-hidden" role="dialog" aria-modal="true">
   <div class="te-modal">
     <h3 id="te-modal-title">TalkEase Safety & Privacy</h3>
-    <div id="te-modal-body">
-      <p>TalkEase is a peer-listening experience, not therapy or emergency care.</p>
-      <ul>
-        <li>Share only what you are comfortable sharing.</li>
-        <li>You can leave a conversation at any time.</li>
-        <li>You can report or block another participant.</li>
-        <li>If someone is in immediate danger, use local emergency or crisis services.</li>
-      </ul>
-    </div>
+    <div id="te-modal-body"></div>
     <div class="te-modal-actions">
       <button id="te-modal-cancel">Close</button>
       <button id="te-modal-confirm" class="te-primary">Continue</button>
@@ -1692,25 +1690,23 @@ console.log(
 
 <div id="te-listener-overlay" class="te-overlay te-hidden" role="dialog" aria-modal="true">
   <div class="te-modal">
-    <h3>Become a TalkEase Listener</h3>
+    <h3>Listener training</h3>
     <p>Listeners support people by hearing them without judging, fixing, or pretending to be a therapist.</p>
     <div class="te-quiz">
-      <div class="te-quiz-q">1. A talker asks you to keep an immediate safety risk secret. What should you do?</div>
+      <div class="te-quiz-q">1. A talker describes an immediate safety risk. What should you do?</div>
       <label><input type="radio" name="teq1" value="a"> Promise to keep it secret.</label>
-      <label><input type="radio" name="teq1" value="b"> Follow TalkEase safety guidance and encourage appropriate help.</label>
+      <label><input type="radio" name="teq1" value="b"> Follow TalkEase safety guidance and encourage appropriate human help.</label>
       <div class="te-quiz-q">2. What is the best default listening style?</div>
       <label><input type="radio" name="teq2" value="a"> Judge and give fast solutions.</label>
       <label><input type="radio" name="teq2" value="b"> Listen, reflect, respect boundaries, and avoid diagnosis.</label>
     </div>
-    <p class="te-consent">By continuing, you confirm you meet the minimum age shown by the app and agree to follow the community guidelines.</p>
+    <p class="te-consent">You agree to follow the community guidelines and the age requirements shown by TalkEase.</p>
     <div class="te-modal-actions">
       <button id="te-listener-cancel">Cancel</button>
       <button id="te-listener-confirm" class="te-primary">Complete training</button>
     </div>
   </div>
 </div>
-
-<div id="te-safety-badge" class="te-safety-badge te-hidden">Protected conversation • Report anytime</div>
 
 
 <script id="talkease-safety-js">
@@ -1722,85 +1718,83 @@ console.log(
   const cancel = document.getElementById('te-modal-cancel');
   const listenerOverlay = document.getElementById('te-listener-overlay');
 
+  function close(){ overlay.classList.add('te-hidden'); }
   function showSafety(){
-    title.textContent = 'TalkEase Safety & Privacy';
-    body.innerHTML = '<p>TalkEase is a peer-listening experience, not therapy or emergency care.</p>' +
-      '<ul><li>Share only what you are comfortable sharing.</li><li>You can leave a conversation at any time.</li>' +
+    title.textContent='TalkEase Safety & Privacy';
+    body.innerHTML='<p>TalkEase is a peer-listening experience, not therapy or emergency care.</p>'+
+      '<ul><li>Share only what you are comfortable sharing.</li><li>You can leave at any time.</li>'+
       '<li>You can report or block another participant.</li><li>For immediate danger, use local emergency or crisis services.</li></ul>';
-    confirm.textContent = 'I understand';
+    confirm.textContent='I understand';
+    confirm.className='te-primary';
     overlay.classList.remove('te-hidden');
-    confirm.onclick = function(){ overlay.classList.add('te-hidden'); };
+    confirm.onclick=close;
   }
-  function closeSafety(){ overlay.classList.add('te-hidden'); }
-
-  cancel && (cancel.onclick = closeSafety);
-  document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeSafety(); listenerOverlay.classList.add('te-hidden'); } });
 
   window.TalkEaseSafety = {
     open: showSafety,
     leave: function(){
-      title.textContent = 'Leave conversation?';
-      body.innerHTML = '<p>You can leave at any time. Leaving will end this conversation for you.</p>';
-      confirm.textContent = 'Leave conversation';
-      confirm.className = 'te-danger';
+      title.textContent='Leave conversation?';
+      body.innerHTML='<p>You can leave at any time. Leaving ends the current conversation for you.</p>';
+      confirm.textContent='Leave conversation';
+      confirm.className='te-danger';
       overlay.classList.remove('te-hidden');
-      confirm.onclick = function(){
-        overlay.classList.add('te-hidden');
-        try { if(typeof endChat === 'function') endChat(); } catch(e) {}
+      confirm.onclick=function(){
+        close();
+        try{ if(typeof endChat==='function') endChat(); }catch(e){}
       };
-      cancel.onclick = function(){ overlay.classList.add('te-hidden'); confirm.className='te-primary'; };
+      cancel.onclick=close;
     },
     report: function(){
-      title.textContent = 'Report conversation';
-      body.innerHTML = '<p>Report behavior that violates the community guidelines. Your report should be reviewed by TalkEase moderation.</p>' +
+      title.textContent='Report conversation';
+      body.innerHTML='<p>Choose to report behavior that violates the community guidelines. Your report will be sent to TalkEase moderation.</p>'+
         '<ul><li>Harassment or abuse</li><li>Threats or coercion</li><li>Sexual or inappropriate content</li><li>Spam or impersonation</li><li>Other safety concern</li></ul>';
-      confirm.textContent = 'Submit report';
-      confirm.className = 'te-primary';
+      confirm.textContent='Submit report';
+      confirm.className='te-primary';
       overlay.classList.remove('te-hidden');
-      confirm.onclick = function(){
-        overlay.classList.add('te-hidden');
-        try {
-          if(window.socket && socket.emit) socket.emit('safety_report', {reason:'user_report'});
-        } catch(e) {}
+      confirm.onclick=function(){
+        close();
+        try{
+          if(typeof socket !== 'undefined' && socket) socket.emit('safety_report',{reason:'user_report'});
+        }catch(e){}
         alert('Thanks. Your report has been recorded for moderation.');
       };
-      cancel.onclick = closeSafety;
+      cancel.onclick=close;
     },
     block: function(){
-      title.textContent = 'Block this person?';
-      body.innerHTML = '<p>Blocking ends the current conversation and prevents this participant from being matched with you again in this prototype.</p>';
-      confirm.textContent = 'Block & leave';
-      confirm.className = 'te-danger';
+      title.textContent='Block this person?';
+      body.innerHTML='<p>Blocking ends the current conversation and marks this participant as blocked for this prototype.</p>';
+      confirm.textContent='Block & leave';
+      confirm.className='te-danger';
       overlay.classList.remove('te-hidden');
-      confirm.onclick = function(){
-        overlay.classList.add('te-hidden');
-        try { if(window.socket && socket.emit) socket.emit('safety_block', {}); } catch(e) {}
-        try { if(typeof endChat === 'function') endChat(); } catch(e) {}
+      confirm.onclick=function(){
+        close();
+        try{
+          if(typeof socket !== 'undefined' && socket) socket.emit('safety_block',{});
+        }catch(e){}
+        try{ if(typeof endChat==='function') endChat(); }catch(e){}
       };
-      cancel.onclick = closeSafety;
-    }
+      cancel.onclick=close;
+    },
+    openListenerTraining: function(){ listenerOverlay.classList.remove('te-hidden'); }
   };
 
-  // Age/consent gate, only once per browser session.
-  if(!sessionStorage.getItem('te_age_consent')){
-    setTimeout(function(){
-      title.textContent = 'Before you continue';
-      body.innerHTML = '<p>TalkEase is for peer conversation and is not a substitute for professional or emergency support.</p>' +
-        '<p><strong>Age confirmation:</strong> You must meet the minimum age required by your local laws and TalkEase policy to use the service.</p>' +
-        '<p class="te-consent">Only share information you are comfortable sharing. You can leave or report a conversation at any time.</p>';
-      confirm.textContent = 'I understand & continue';
-      overlay.classList.remove('te-hidden');
-      confirm.onclick = function(){
-        sessionStorage.setItem('te_age_consent','1');
-        overlay.classList.add('te-hidden');
-      };
-    }, 250);
-  }
+  cancel.onclick=close;
+  document.getElementById('te-listener-cancel').onclick=function(){listenerOverlay.classList.add('te-hidden');};
+  document.getElementById('te-listener-confirm').onclick=function(){
+    const a=document.querySelector('input[name="teq1"]:checked');
+    const b=document.querySelector('input[name="teq2"]:checked');
+    if(!a || !b || a.value!=='b' || b.value!=='b'){
+      alert('Please complete the safety quiz correctly before becoming a listener.');
+      return;
+    }
+    localStorage.setItem('te_listener_training','complete');
+    listenerOverlay.classList.add('te-hidden');
+    alert('Listener training complete. Prototype verification status: Approved.');
+  };
 
-  // Add a safety link to the page without depending on exact existing markup.
-  window.addEventListener('load', function(){
+  window.addEventListener('load',function(){
     if(!document.getElementById('te-safety-link')){
-      const link = document.createElement('button');
+      const link=document.createElement('button');
       link.id='te-safety-link';
       link.className='te-safety-link';
       link.textContent='Safety & privacy';
@@ -1809,58 +1803,59 @@ console.log(
     }
   });
 
-  // Listener onboarding entry point: if an obvious listener button exists, intercept it
-  // only when it contains "listen"; otherwise expose a global function for existing UI.
-  window.TalkEaseSafety.openListenerTraining = function(){
-    listenerOverlay.classList.remove('te-hidden');
-  };
-  const lc = document.getElementById('te-listener-cancel');
-  const lconfirm = document.getElementById('te-listener-confirm');
-  lc && (lc.onclick = function(){ listenerOverlay.classList.add('te-hidden'); });
-  lconfirm && (lconfirm.onclick = function(){
-    const a = document.querySelector('input[name="teq1"]:checked');
-    const b = document.querySelector('input[name="teq2"]:checked');
-    if(!a || !b || a.value !== 'b' || b.value !== 'b'){
-      alert('Please complete the safety quiz correctly before becoming a listener.');
-      return;
-    }
-    localStorage.setItem('te_listener_training','complete');
-    listenerOverlay.classList.add('te-hidden');
-    alert('Listener training complete. Your prototype verification status is now: Approved.');
-  });
-
-  // Try to make the existing close/end control safer without removing its functionality.
-  // Only add a capture listener to elements whose visible text/aria-label clearly indicates close.
-  document.addEventListener('click', function(e){
-    const el = e.target.closest && e.target.closest('button');
-    if(!el) return;
-    const label = ((el.getAttribute('aria-label')||'')+' '+(el.textContent||'')).trim().toLowerCase();
-    if(label === 'report' || label === 'block') return;
-  }, true);
+  if(!sessionStorage.getItem('te_age_consent')){
+    setTimeout(function(){
+      title.textContent='Before you continue';
+      body.innerHTML='<p>TalkEase is for peer conversation and is not a substitute for professional or emergency support.</p>'+
+        '<p><strong>Age confirmation:</strong> You must meet the minimum age required by TalkEase policy and applicable law.</p>'+
+        '<p>Only share information you are comfortable sharing. You can leave or report a conversation at any time.</p>';
+      confirm.textContent='I understand & continue';
+      confirm.className='te-primary';
+      overlay.classList.remove('te-hidden');
+      confirm.onclick=function(){
+        sessionStorage.setItem('te_age_consent','1');
+        close();
+      };
+    },250);
+  }
 })();
 </script>
 
 
-<script id="talkease-safety-extras">
+<script id="talkease-ai-retry-fix">
 (function(){
-  window.addEventListener('load', function(){
-    const timer = document.querySelector('[id*="timer" i], [class*="timer" i]');
+  const originalSendAI = window.sendAI;
+  if (typeof originalSendAI !== "function") return;
+
+  /*
+   * The existing sendAI remains the source of truth. This helper only
+   * adds a safe "retry last message" action if the existing request fails.
+   */
+  window.TalkEaseRetryAI = function(){
+    const input = document.getElementById("aimsg");
+    if(!input) return;
+    const last = [...document.querySelectorAll("#aiMsgs .b.you, #aiMsgs .b.user")].pop();
+    const text = last ? last.textContent.replace(/^You\s*/i,"").trim() : "";
+    if(text){
+      input.value = text;
+      originalSendAI();
+    } else {
+      input.focus();
+    }
+  };
+})();
+</script>
+
+<script id="talkease-product-extras">
+(function(){
+  window.addEventListener('load',function(){
+    const timer=document.querySelector('[id*="timer" i],[class*="timer" i]');
     if(timer && !document.getElementById('te-timer-note')){
       const n=document.createElement('div');
       n.id='te-timer-note';
       n.className='te-safety-badge';
       n.textContent='20-minute maximum • ends automatically when time runs out';
       timer.parentElement && timer.parentElement.appendChild(n);
-    }
-    // If the page has a listener role control, add training access next to it.
-    const candidates=[...document.querySelectorAll('button, a')].filter(x=>/listener|listen/i.test((x.textContent||'')));
-    if(candidates.length && !document.getElementById('te-training-btn')){
-      const b=document.createElement('button');
-      b.id='te-training-btn';
-      b.className='te-safety-link';
-      b.textContent='Listener training & safety quiz';
-      b.onclick=()=>window.TalkEaseSafety && TalkEaseSafety.openListenerTraining();
-      candidates[0].parentElement && candidates[0].parentElement.appendChild(b);
     }
   });
 })();

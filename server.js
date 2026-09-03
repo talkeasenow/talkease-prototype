@@ -22,7 +22,18 @@ GEMINI AI
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+/*
+ * Gemini models are kept in fallback order so a temporary model/API
+ * issue does not take down the AI waiting experience.
+ *
+ * Google currently documents Gemini 3.8 Flash and 3.7 Flash for
+ * generateContent; 3.6 Flash remains a fallback for this prototype.
+ */
+const GEMINI_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash"
+];
 
 const SYSTEM_INSTRUCTION = `
 You are an empathetic AI listener in the TalkEase listening/support app.
@@ -32,7 +43,6 @@ You are an AI, not a human.
 Your job is to listen carefully and respond naturally to what the person actually says.
 
 Rules:
-
 - Respond to the person's specific message.
 - Do not repeat the same generic response.
 - Do not always ask "what part feels hardest?"
@@ -43,18 +53,11 @@ Rules:
 - Keep responses conversational, warm, supportive, and reasonably short.
 - Do not overuse questions.
 - Do not give long lectures unless the person asks for detail.
-
-If the person appears to be in immediate danger or talks about harming themselves
-or someone else, encourage them to seek immediate human help and contact appropriate
-local emergency or crisis services.
+- Never claim that you contacted emergency services or another human.
+- If the person appears to be in immediate danger or talks about harming themselves
+  or someone else, encourage immediate human help and appropriate local emergency
+  or crisis services.
 `;
-
-/*
-Convert our frontend history into Gemini's format.
-Gemini uses:
-"user" for the person
-"model" for the AI
-*/
 
 function buildGeminiContents(history, message) {
   const contents = [];
@@ -63,52 +66,101 @@ function buildGeminiContents(history, message) {
     for (const item of history) {
       if (!item || !item.content) continue;
 
-      if (item.role === "user") {
-        contents.push({
-          role: "user",
-          parts: [
-            {
-              text: String(item.content)
-            }
-          ]
-        });
-      }
+      const role =
+        item.role === "assistant" || item.role === "model"
+          ? "model"
+          : "user";
 
-      if (item.role === "assistant" || item.role === "model") {
-        contents.push({
-          role: "model",
-          parts: [
-            {
-              text: String(item.content)
-            }
-          ]
-        });
-      }
+      contents.push({
+        role,
+        parts: [{ text: String(item.content) }]
+      });
     }
   }
 
-  /*
-  Prevent the current message from being added twice.
-  */
-
   const last = contents[contents.length - 1];
+  const current = String(message);
 
   if (
     !last ||
     last.role !== "user" ||
-    last.parts[0].text !== String(message)
+    last.parts?.[0]?.text !== current
   ) {
     contents.push({
       role: "user",
-      parts: [
-        {
-          text: String(message)
-        }
-      ]
+      parts: [{ text: current }]
     });
   }
 
   return contents;
+}
+
+function geminiErrorMessage(data) {
+  return (
+    data?.error?.message ||
+    data?.error?.status ||
+    "Gemini request failed."
+  );
+}
+
+async function callGemini(model, contents) {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/` +
+    `${model}:generateContent`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: SYSTEM_INSTRUCTION }]
+        },
+        contents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 300
+        }
+      }),
+      signal: controller.signal
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (_) {
+      data = {};
+    }
+
+    if (!response.ok) {
+      const err = new Error(geminiErrorMessage(data));
+      err.status = response.status;
+      err.data = data;
+      throw err;
+    }
+
+    const reply = data?.candidates?.[0]?.content?.parts
+      ?.map(part => part.text || "")
+      .join("")
+      .trim();
+
+    if (!reply) {
+      const err = new Error("Gemini returned no text.");
+      err.status = 502;
+      err.data = data;
+      throw err;
+    }
+
+    return reply;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 /*
@@ -118,8 +170,11 @@ AI CHAT ROUTE
 */
 
 app.post("/api/chat", async (req, res) => {
+  const requestId =
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
   try {
-    const { message, history = [] } = req.body;
+    const { message, history = [] } = req.body || {};
 
     if (!message || !String(message).trim()) {
       return res.status(400).json({
@@ -128,71 +183,62 @@ app.post("/api/chat", async (req, res) => {
     }
 
     if (!GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is missing.");
-
-      return res.status(500).json({
-        error: "Gemini API key is not configured on the server."
+      console.error(`[AI ${requestId}] GEMINI_API_KEY is missing.`);
+      return res.status(503).json({
+        error: "AI is not configured on this server.",
+        code: "MISSING_API_KEY",
+        requestId
       });
     }
 
     const contents = buildGeminiContents(history, message);
+    let lastError = null;
 
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/` +
-      `${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+    for (const model of GEMINI_MODELS) {
+      try {
+        console.log(`[AI ${requestId}] Trying ${model}`);
+        const reply = await callGemini(model, contents);
 
-    const geminiResponse = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [
-            {
-              text: SYSTEM_INSTRUCTION
-            }
-          ]
-        },
-        contents: contents
-      })
-    });
+        console.log(`[AI ${requestId}] Success with ${model}`);
 
-    const data = await geminiResponse.json();
+        return res.json({
+          reply,
+          model
+        });
+      } catch (error) {
+        lastError = error;
 
-    if (!geminiResponse.ok) {
-      console.error("Gemini API error:", data);
+        console.error(
+          `[AI ${requestId}] ${model} failed:`,
+          error.message
+        );
 
-      return res.status(geminiResponse.status).json({
-        error:
-          data?.error?.message ||
-          "Gemini could not generate a response."
-      });
+        /*
+         * Try the next model for model-not-found, quota/rate-limit,
+         * transient server, or other upstream failures.
+         */
+      }
     }
 
-    const reply =
-      data?.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("")
-        .trim();
+    console.error(
+      `[AI ${requestId}] All Gemini models failed. Last error:`,
+      lastError?.message
+    );
 
-    if (!reply) {
-      console.error("Gemini returned no text:", data);
-
-      return res.status(500).json({
-        error: "Gemini returned an empty response."
-      });
-    }
-
-    res.json({
-      reply
+    return res.status(503).json({
+      error:
+        "The AI service is temporarily unavailable. Your message was not lost. Please try again.",
+      code: "AI_UPSTREAM_UNAVAILABLE",
+      requestId
     });
 
   } catch (error) {
-    console.error("AI server error:", error);
+    console.error(`[AI ${requestId}] Server error:`, error);
 
-    res.status(500).json({
-      error: "Unable to connect to the AI right now."
+    return res.status(500).json({
+      error: "The AI service encountered a temporary problem. Please try again.",
+      code: "AI_SERVER_ERROR",
+      requestId
     });
   }
 });
@@ -419,24 +465,24 @@ server.listen(PORT, () => {
 });
 
 
-// --- TalkEase safety events (additive) ---
+/*
+========================================================
+PROTOTYPE SAFETY EVENTS
+========================================================
+*/
 const safetyReports = [];
-const blockedPairs = new Set();
 
-io.on('connection', (socket) => {
-  socket.on('safety_report', (payload = {}) => {
+io.on("connection", socket => {
+  socket.on("safety_report", payload => {
     safetyReports.push({
       socketId: socket.id,
-      reason: String(payload.reason || 'unspecified').slice(0, 120),
+      reason: String(payload?.reason || "unspecified").slice(0, 120),
       at: new Date().toISOString()
     });
-    // Keep reports in memory for the prototype; production should persist securely.
-    console.log('[safety] report received', socket.id, payload.reason || 'unspecified');
+    console.log("[safety] report received:", socket.id);
   });
 
-  socket.on('safety_block', () => {
-    // Prototype-only block marker. A production implementation should persist
-    // the relationship against authenticated user IDs.
-    console.log('[safety] block requested', socket.id);
+  socket.on("safety_block", () => {
+    console.log("[safety] block requested:", socket.id);
   });
 });

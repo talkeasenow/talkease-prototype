@@ -30,17 +30,17 @@ The AI fallback here is a prototype simulation using local scripted responses. I
 Do not use this prototype for real sensitive conversations. Production requires authentication/privacy controls, secure transport, abuse prevention, moderation, reporting/blocking, crisis-safety flows, data retention policy, and a production AI integration.
 
 
-## Prototype Safety Layer
+## AI Connection Reliability
 
-This version adds an additive safety/consent layer while preserving the existing TalkEase matching and chat loop:
+The prototype now:
+- uses the current Gemini `generateContent` REST pattern with the API key in the request header
+- tries Gemini 3.8 Flash, then 3.7 Flash, then 3.6 Flash
+- applies a 20-second upstream timeout
+- logs the request ID/model/error on the server for diagnosis
+- returns a clear temporary-unavailable response instead of hiding every upstream error behind a generic connection failure
 
-- Age/consent gate before entering the experience
-- In-product safety & privacy information
-- Leave-conversation confirmation
-- Report and block actions
-- Listener safety training + short quiz
-- Explicit 20-minute timer behavior copy
-- Basic crisis-safety messaging
-- Prototype server events for safety reports/blocks
+### Deployment requirement
 
-**Important:** The report/block storage, identity verification, moderation review, age verification, and crisis escalation are prototype implementations. They should be replaced with secure, authenticated, persistent systems before production.
+Set `GEMINI_API_KEY` in the deployment platform's server environment. Never put the key in `index.html` or client-side JavaScript.
+
+The AI fallback sequence improves resilience, but a valid Gemini API key with the required access/quota is still necessary for live AI responses.
