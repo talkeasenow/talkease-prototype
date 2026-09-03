@@ -456,7 +456,7 @@ server.listen(PORT, () => {
   );
 
   console.log(
-    `Gemini model: ${GEMINI_MODEL}`
+    `Gemini models: ${GEMINI_MODELS.join(", ")}`
   );
 
   console.log(
