@@ -305,6 +305,21 @@ p{
 
 </style>
 
+<style id="talkease-choice-css">
+  .mode-choice{padding:10px 12px 8px;background:#fff;border-bottom:1px solid #e3dfed}
+  .mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:7px;background:#f1eef9;padding:5px;border-radius:14px}
+  .mode-option{border:0;border-radius:11px;padding:10px 7px;background:transparent;color:#5f5a70;font-weight:800;font-size:13px;cursor:pointer}
+  .mode-option.active{background:#fff;color:#5c45c4;box-shadow:0 2px 8px rgba(31,24,60,.08)}
+  .mode-price{display:block;font-size:10px;font-weight:700;margin-top:3px;color:#77738a}
+  .mode-option.voice .mode-price{color:#b24b5d}
+  .chat-voice-cta{position:absolute;left:10px;right:10px;bottom:66px;border:1px solid #ddd5ff;background:#f7f3ff;color:#503bb2;border-radius:13px;padding:9px 11px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;box-shadow:0 4px 14px rgba(64,44,145,.08)}
+  .chat-voice-cta strong{font-size:12px}.chat-voice-cta span{display:block;font-size:10px;color:#77738a;margin-top:2px}
+  .chat-voice-cta .cta-call{border:0;border-radius:10px;background:#7357e8;color:#fff;font-weight:800;padding:9px 12px;white-space:nowrap}
+  .privacy-line{font-size:10px;color:#77738a;text-align:center;padding:4px 8px 2px}
+  .voice-confirm{margin-top:14px;background:#fff;border:1px solid #ddd5ff;border-radius:16px;padding:14px;text-align:left;width:100%;max-width:320px}
+  .voice-confirm b{font-size:13px}.voice-confirm p{font-size:11px;margin:5px 0 0}
+</style>
+
 <style id="talkease-safety-css">
   .te-safety-link{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:8px 10px;border:0;background:transparent;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline}
   .te-safety-badge{font-size:11px;color:#6b7280;margin:4px 0 8px;text-align:center}
@@ -637,44 +652,30 @@ p{
 
   <div class="top">
 
-    <div class="avatar">
-      👂
-    </div>
+    <div class="avatar">👂</div>
 
     <div style="flex:1;min-width:0">
-
-      <b id="peer">
-        Human listener
-      </b>
-
-      <div
-        style="font-size:11px"
-        class="green"
-      >
-        ● Connected
-      </div>
-
+      <b id="peer">Human listener</b>
+      <div style="font-size:11px" class="green">● Connected</div>
     </div>
 
-    <button
-      id="voiceLaunchBtn"
-      class="voice-launch"
-      onclick="startVoiceCall()"
-      title="Start a private voice conversation"
-    >
-      🎙️ Voice
-    </button>
-
-    <button
-      onclick="endChat()"
-      style="border:0;background:transparent;font-size:16px"
-      aria-label="End conversation"
-    >
-      ✕
-    </button>
+    <button onclick="endChat()" style="border:0;background:transparent;font-size:16px" aria-label="End conversation">✕</button>
 
   </div>
 
+  <div class="mode-choice" aria-label="Choose how to connect">
+    <div class="mode-switch">
+      <button id="chatModeBtn" class="mode-option active" onclick="selectConversationMode('chat')">
+        💬 Chat
+        <span class="mode-price">FREE • first 20 min</span>
+      </button>
+      <button id="voiceModeBtn" class="mode-option voice" onclick="selectConversationMode('voice')">
+        📞 Voice Call
+        <span class="mode-price">PAID • from 1st second</span>
+      </button>
+    </div>
+    <div class="privacy-line">🔒 Private conversation • Your phone number is not shared</div>
+  </div>
 
   <div id="msgs" class="chat">
 
@@ -691,19 +692,14 @@ p{
   </div>
 
 
+  <div class="chat-voice-cta" onclick="confirmVoiceCall()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')confirmVoiceCall()">
+    <div><strong>📞 Talk by voice instead?</strong><span>Paid from the first second • private audio</span></div>
+    <button class="cta-call" onclick="event.stopPropagation();confirmVoiceCall()">Call</button>
+  </div>
+
   <div class="bar">
-
-    <input
-      id="msg"
-      placeholder="Type a message..."
-      autocomplete="off"
-      onkeydown="if(event.key==='Enter')send()"
-    >
-
-    <button onclick="send()">
-      ➤
-    </button>
-
+    <input id="msg" placeholder="Type a message..." autocomplete="off" onkeydown="if(event.key==='Enter')send()">
+    <button onclick="send()">➤</button>
   </div>
 
 </section>
@@ -1809,6 +1805,33 @@ function createPeerConnection() {
   return peerConnection;
 }
 
+function selectConversationMode(mode){
+  const chatBtn=document.getElementById("chatModeBtn");
+  const voiceBtn=document.getElementById("voiceModeBtn");
+  if(chatBtn) chatBtn.classList.toggle("active",mode==="chat");
+  if(voiceBtn) voiceBtn.classList.toggle("active",mode==="voice");
+  if(mode==="voice") confirmVoiceCall();
+}
+
+function confirmVoiceCall(){
+  if(!socket || !room){ alert("Please connect with a human listener first."); return; }
+  const panel=document.getElementById("voicePanel");
+  openVoicePanel();
+  document.getElementById("voiceIncomingActions").style.display="none";
+  document.getElementById("voiceControls").style.display="none";
+  document.getElementById("voiceRetryWrap").style.display="none";
+  document.getElementById("voicePeer").textContent=document.getElementById("peer").textContent || "Human listener";
+  document.getElementById("voiceState").textContent="Ready to call";
+  document.getElementById("voiceQuality").textContent="Voice calls are paid from the first second.";
+  let box=document.getElementById("voiceConfirmBox");
+  if(!box){
+    box=document.createElement("div"); box.id="voiceConfirmBox"; box.className="voice-confirm";
+    box.innerHTML='<b>Start paid voice call?</b><p>Your call is charged from the first second. TalkEase uses private audio and does not share your phone number.</p><div style="display:flex;gap:8px;margin-top:12px"><button class="btn" style="margin-top:0" onclick="startVoiceCall()">Start Call</button><button class="btn sec" style="margin-top:0" onclick="closeVoicePanel()">Cancel</button></div>';
+    document.getElementById("voiceQuality").after(box);
+  }
+  box.style.display="block";
+}
+
 async function startVoiceCall() {
   if (!socket || !room) {
     alert("Please connect with a human listener first.");
@@ -1817,6 +1840,7 @@ async function startVoiceCall() {
   if (voiceActive) return;
 
   openVoicePanel();
+  const confirmBox=document.getElementById("voiceConfirmBox"); if(confirmBox) confirmBox.style.display="none";
   voiceCallStarter = true;
   incomingVoiceOffer = null;
   document.getElementById("voicePeer").textContent = document.getElementById("peer").textContent || "Human listener";
@@ -1880,6 +1904,7 @@ async function handleVoiceSignal(payload) {
       document.getElementById("voiceControls").style.display = "none";
       document.getElementById("voiceRetryWrap").style.display = "none";
       document.getElementById("voiceIncomingActions").style.display = "block";
+      const confirmBox=document.getElementById("voiceConfirmBox"); if(confirmBox) confirmBox.style.display="none";
       setVoiceState("Incoming voice call", "A human listener wants to talk by voice.");
       return;
     }
