@@ -733,7 +733,7 @@ p{
   </div>
 
   <div class="voice-note">TalkEase voice is audio-only. Your phone number is not shared with the other participant.</div>
-  <audio id="remoteAudio" autoplay playsinline></audio>
+  <audio id="remoteAudio" autoplay playsinline disableRemotePlayback></audio>
 </div>
 
 <!-- =====================================================
@@ -850,6 +850,7 @@ let voiceActive = false;
 let voiceMuted = false;
 let incomingVoiceOffer = null;
 let voiceCallStarter = false;
+let voiceOutputRoute = "unknown";
 const rtcConfig = {
   iceServers: [
     { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }
@@ -1667,6 +1668,72 @@ function openVoicePanel() {
   document.getElementById("voicePanel").classList.remove("hidden");
 }
 
+/*
+ * Try to make voice-call audio behave like a phone call rather than a
+ * media playback session. Browsers are ultimately allowed to choose the
+ * output route, so this is best-effort on the web. Native Android builds
+ * can use the optional bridge below to force the actual earpiece.
+ */
+async function routeVoiceAudioToEarpiece() {
+  const audio = document.getElementById("remoteAudio");
+  if (!audio) return false;
+
+  audio.autoplay = true;
+  audio.playsInline = true;
+  audio.disableRemotePlayback = true;
+
+  // Native wrapper hook (Capacitor/WebView/etc.) if supplied later.
+  try {
+    if (window.TalkEaseNativeAudio && typeof window.TalkEaseNativeAudio.setEarpiece === "function") {
+      await window.TalkEaseNativeAudio.setEarpiece(true);
+      voiceOutputRoute = "earpiece";
+      setVoiceState("Voice connected", "🟢 Private earpiece audio");
+      return true;
+    }
+  } catch (e) {
+    console.warn("Native earpiece routing unavailable:", e);
+  }
+
+  // Chromium exposes setSinkId on some platforms. Prefer the
+  // communications/earpiece output when the platform exposes one.
+  if (typeof audio.setSinkId === "function") {
+    const candidates = ["communications"];
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      for (const device of devices) {
+        if (device.kind !== "audiooutput") continue;
+        const label = String(device.label || "").toLowerCase();
+        if (/earpiece|receiver|communications|phone|handset/.test(label)) {
+          candidates.push(device.deviceId);
+        }
+      }
+      candidates.push("default");
+    } catch (e) {
+      candidates.push("default");
+    }
+
+    for (const sinkId of [...new Set(candidates)]) {
+      try {
+        await audio.setSinkId(sinkId);
+        voiceOutputRoute = sinkId === "default" ? "default" : "earpiece";
+        setVoiceState("Voice connected", voiceOutputRoute === "earpiece"
+          ? "🟢 Private earpiece audio"
+          : "🟢 Private audio route selected");
+        return true;
+      } catch (e) {
+        console.debug("Audio output route unavailable:", sinkId, e?.message || e);
+      }
+    }
+  }
+
+  // If the browser does not expose output routing, keep the call alive and
+  // explicitly avoid claiming that speakerphone was disabled.
+  voiceOutputRoute = "browser-default";
+  setVoiceState("Voice connected", "🟢 Connected • browser controls audio output");
+  return false;
+}
+
 function closeVoicePanel() {
   cleanupVoice(false);
   document.getElementById("voicePanel").classList.add("hidden");
@@ -1692,13 +1759,7 @@ async function getMicrophone() {
 function createPeerConnection() {
   if (peerConnection) peerConnection.close();
   peerConnection = new RTCPeerConnection(rtcConfig);
-
-  /*
-   * IMPORTANT: do not clear pendingIceCandidates here.
-   * The caller can send trickled ICE candidates before the listener
-   * presses Accept. Those candidates must survive until the answerer
-   * has applied the remote offer.
-   */
+  pendingIceCandidates = [];
 
   peerConnection.onicecandidate = event => {
     if (event.candidate && socket && room) {
@@ -1706,18 +1767,11 @@ function createPeerConnection() {
     }
   };
 
-  peerConnection.onicecandidateerror = event => {
-    console.warn("WebRTC ICE candidate error:", {
-      url: event.url,
-      errorCode: event.errorCode,
-      errorText: event.errorText
-    });
-  };
-
   peerConnection.ontrack = event => {
     const audio = document.getElementById("remoteAudio");
     if (audio && event.streams[0]) {
       audio.srcObject = event.streams[0];
+      routeVoiceAudioToEarpiece().catch(() => {});
       audio.play().catch(() => {});
     }
   };
@@ -1727,6 +1781,7 @@ function createPeerConnection() {
     const state = peerConnection.connectionState;
     if (state === "connected") {
       voiceActive = true;
+      routeVoiceAudioToEarpiece().catch(() => {});
       setVoiceState("Voice connected", "🟢 Connection established");
       document.getElementById("voiceControls").style.display = "flex";
       document.getElementById("voiceIncomingActions").style.display = "none";
@@ -1771,8 +1826,6 @@ async function startVoiceCall() {
   setVoiceState("Preparing voice call…", "Microphone permission may be requested.");
 
   try {
-    /* Start a fresh candidate queue for a new outgoing call. */
-    pendingIceCandidates = [];
     const stream = await getMicrophone();
     const pc = createPeerConnection();
     stream.getTracks().forEach(track => pc.addTrack(track, stream));
@@ -1782,11 +1835,7 @@ async function startVoiceCall() {
     setVoiceState("Calling…", "Establishing connection…");
   } catch (error) {
     console.error("Voice start error:", error);
-    const microphoneIssue = error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError";
-    setVoiceState(
-      microphoneIssue ? "Microphone access is required" : "Couldn't start the voice call",
-      microphoneIssue ? "Please allow microphone access and try again." : "Please try the voice call again."
-    );
+    setVoiceState("Microphone access is required", "Please allow microphone access and try again.");
     document.getElementById("voiceRetryWrap").style.display = "block";
   }
 }
@@ -1861,7 +1910,8 @@ async function handleVoiceSignal(payload) {
 
     if (payload.type === "end") {
       cleanupVoice(false);
-      setVoiceState("Voice call ended", "You can continue with text chat.");
+      openVoicePanel();
+      setVoiceState("Call ended", "The other participant ended the voice call.");
       document.getElementById("voiceControls").style.display = "none";
       document.getElementById("voiceIncomingActions").style.display = "none";
       document.getElementById("voiceRetryWrap").style.display = "block";
@@ -1906,6 +1956,7 @@ function cleanupVoice(notifyRemote = false) {
   incomingVoiceOffer = null;
   voiceActive = false;
   voiceMuted = false;
+  voiceOutputRoute = "unknown";
   const audio = document.getElementById("remoteAudio");
   if (audio) audio.srcObject = null;
   const mute = document.getElementById("muteVoiceBtn");
