@@ -255,6 +255,7 @@ p{
 }
 </style>
 
+<style id="talkease-voice-css">
 /* =====================================================
    VOICE CALL UI
 ===================================================== */
@@ -300,6 +301,9 @@ p{
 .voice-note{font-size:11px;color:#77738a;line-height:1.45;max-width:290px;margin-top:20px}
 .voice-incoming-actions{width:100%;max-width:300px;margin-top:8px}
 .voice-incoming-actions .btn{margin-top:8px}
+
+
+</style>
 
 <style id="talkease-safety-css">
   .te-safety-link{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:8px 10px;border:0;background:transparent;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline}
@@ -853,6 +857,21 @@ const rtcConfig = {
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require"
 };
+
+/*
+ * Optional TURN support can be injected by the hosting page later.
+ * STUN remains the zero-cost default for the prototype. TURN is strongly
+ * recommended for reliable calls across restrictive/mobile networks.
+ */
+function addOptionalTurnServer() {
+  const url = window.TALKEASE_TURN_URL;
+  const username = window.TALKEASE_TURN_USERNAME;
+  const credential = window.TALKEASE_TURN_CREDENTIAL;
+  if (url && username && credential) {
+    rtcConfig.iceServers.push({ urls: url, username, credential });
+  }
+}
+addOptionalTurnServer();
 
 
 /*

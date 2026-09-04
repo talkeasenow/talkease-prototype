@@ -58,3 +58,15 @@ This version adds browser-to-browser audio calling for matched TalkEase users.
 - Voice status distinguishes a human match from an actually established WebRTC connection.
 
 For production, add authenticated signaling, rate limiting, abuse controls, a managed/self-hosted TURN service, monitoring, and stronger authorization before allowing real sensitive conversations.
+
+## Voice-call prototype notes
+
+- Voice is audio-only and has **no call timer**.
+- The UI includes **Mute** and **End call** controls.
+- WebRTC is used for peer-to-peer audio; Socket.IO is used only for signaling.
+- The prototype includes Google STUN servers by default, so no paid voice provider is required for initial testing.
+- For reliable connectivity on mobile networks, CGNAT, corporate Wi-Fi, or restrictive firewalls, add a TURN server before investor/public testing. The client supports optional runtime values through `window.TALKEASE_TURN_URL`, `window.TALKEASE_TURN_USERNAME`, and `window.TALKEASE_TURN_CREDENTIAL`.
+
+### Important deployment point
+
+STUN-only WebRTC cannot guarantee a connection between every pair of users. A TURN relay is the normal production fallback when direct peer-to-peer ICE fails. Keep TURN credentials server-side or issue short-lived credentials; do not hard-code permanent secrets into the public HTML.
