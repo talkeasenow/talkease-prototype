@@ -274,7 +274,7 @@ p{
   position:absolute;
   inset:0;
   z-index:30;
-  background:rgba(247,245,252,.98);
+  background:#f7f5fc;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -288,8 +288,18 @@ p{
   background:#d9ceff;display:grid;place-items:center;
   font-size:42px;margin-bottom:16px;
 }
-.voice-state{font-size:14px;color:#77738a;min-height:22px;margin:5px 0 18px}
+.voice-state{font-size:15px;color:#77738a;min-height:22px;margin:5px 0 10px;font-weight:600}
 .voice-quality{font-size:12px;color:#15965a;margin-bottom:18px;min-height:18px}
+.voice-error-card{width:100%;max-width:340px;background:#fff;border:1px solid #eadff3;border-radius:18px;padding:16px 15px;margin:2px 0 6px;box-shadow:0 8px 24px rgba(31,24,60,.07)}
+.voice-error-card .error-icon{width:54px;height:54px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;background:#fff0f2;font-size:27px}
+.voice-error-card .error-title{font-size:18px;font-weight:800;color:#242036;margin-bottom:5px}
+.voice-error-card .error-copy{font-size:12px;line-height:1.5;color:#77738a}
+.voice-panel.voice-failed .voice-state{color:#242036;font-size:0}
+.voice-panel.voice-failed .voice-state::after{content:"Voice connection failed";font-size:20px;font-weight:800}
+.voice-panel.voice-failed .voice-quality{color:#15965a;font-size:13px;font-weight:600}
+.voice-panel.voice-failed .voice-avatar{margin-bottom:12px}
+.voice-panel.voice-failed .voice-error-card{display:block}
+.voice-panel.voice-failed .voice-note{margin-top:16px}
 .voice-controls{display:flex;gap:14px;justify-content:center;margin-top:6px}
 .voice-control{
   width:66px;height:66px;border:0;border-radius:50%;
@@ -318,6 +328,12 @@ p{
   .privacy-line{font-size:10px;color:#77738a;text-align:center;padding:4px 8px 2px}
   .voice-confirm{margin-top:14px;background:#fff;border:1px solid #ddd5ff;border-radius:16px;padding:14px;text-align:left;width:100%;max-width:320px}
   .voice-confirm b{font-size:13px}.voice-confirm p{font-size:11px;margin:5px 0 0}
+@media (max-width:520px){
+  .voice-panel{padding:24px 18px}
+  .voice-avatar{width:86px;height:86px;font-size:39px}
+  .voice-control{width:64px;height:64px}
+  .voice-error-card{max-width:330px}
+}
 </style>
 
 <style id="talkease-safety-css">
@@ -721,6 +737,12 @@ p{
   <div id="voiceControls" class="voice-controls" style="display:none">
     <button id="muteVoiceBtn" class="voice-control" onclick="toggleMute()" aria-label="Mute microphone">🔇</button>
     <button class="voice-control end" onclick="endVoiceCall()" aria-label="End voice call">☎</button>
+  </div>
+
+  <div id="voiceErrorCard" class="voice-error-card" style="display:none">
+    <div class="error-icon">📞</div>
+    <div class="error-title">We couldn't keep the call connected</div>
+    <div class="error-copy">The connection was interrupted. Your chat is still available, and you can try the private voice call again.</div>
   </div>
 
   <div id="voiceRetryWrap" style="display:none;width:100%;max-width:300px">
@@ -1660,8 +1682,22 @@ function setVoiceState(text, quality = "") {
   if (q) q.textContent = quality;
 }
 
+function showVoiceFailure() {
+  const panel = document.getElementById("voicePanel");
+  panel.classList.add("voice-failed");
+  const errorCard = document.getElementById("voiceErrorCard");
+  if (errorCard) errorCard.style.display = "block";
+  document.getElementById("voiceControls").style.display = "none";
+  document.getElementById("voiceRetryWrap").style.display = "block";
+  setVoiceState("Voice connection failed", "Please try again.");
+  voiceActive = false;
+}
+
 function openVoicePanel() {
-  document.getElementById("voicePanel").classList.remove("hidden");
+  const panel = document.getElementById("voicePanel");
+  panel.classList.remove("hidden", "voice-failed");
+  const errorCard = document.getElementById("voiceErrorCard");
+  if (errorCard) errorCard.style.display = "none";
 }
 
 /*
@@ -1787,10 +1823,7 @@ function createPeerConnection() {
     } else if (state === "disconnected") {
       setVoiceState("Connection interrupted", "🟡 Trying to reconnect…");
     } else if (state === "failed") {
-      setVoiceState("Voice connection failed", "Please try again.");
-      document.getElementById("voiceControls").style.display = "none";
-      document.getElementById("voiceRetryWrap").style.display = "block";
-      voiceActive = false;
+      showVoiceFailure();
     }
   };
 
@@ -1799,7 +1832,7 @@ function createPeerConnection() {
     const ice = peerConnection.iceConnectionState;
     if (ice === "checking") setVoiceState("Finding the best connection…", "Checking network path…");
     if (ice === "connected" || ice === "completed") setVoiceState("Voice connected", "🟢 Connection established");
-    if (ice === "failed") setVoiceState("Voice connection failed", "Please try again.");
+    if (ice === "failed" && peerConnection.connectionState !== "connected") showVoiceFailure();
   };
 
   return peerConnection;
@@ -1820,6 +1853,8 @@ function confirmVoiceCall(){
   document.getElementById("voiceIncomingActions").style.display="none";
   document.getElementById("voiceControls").style.display="none";
   document.getElementById("voiceRetryWrap").style.display="none";
+  document.getElementById("voicePanel").classList.remove("voice-failed");
+  const errorCard=document.getElementById("voiceErrorCard"); if(errorCard) errorCard.style.display="none";
   document.getElementById("voicePeer").textContent=document.getElementById("peer").textContent || "Human listener";
   document.getElementById("voiceState").textContent="Ready to call";
   document.getElementById("voiceQuality").textContent="Voice calls are paid from the first second.";
