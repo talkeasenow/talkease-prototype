@@ -44,3 +44,17 @@ The prototype now:
 Set `GEMINI_API_KEY` in the deployment platform's server environment. Never put the key in `index.html` or client-side JavaScript.
 
 The AI fallback sequence improves resilience, but a valid Gemini API key with the required access/quota is still necessary for live AI responses.
+
+
+## Voice call prototype (WebRTC)
+
+This version adds browser-to-browser audio calling for matched TalkEase users.
+- Socket.IO is used only for WebRTC signaling (offer/answer/ICE).
+- Audio stays peer-to-peer when the network allows it.
+- Browser audio processing requests echo cancellation, noise suppression, and automatic gain control.
+- The prototype uses public Google STUN servers; a TURN relay is still recommended before production launch for difficult NAT/firewall networks.
+- Voice controls: microphone mute/unmute and end call.
+- No conversation timer is used for voice.
+- Voice status distinguishes a human match from an actually established WebRTC connection.
+
+For production, add authenticated signaling, rate limiting, abuse controls, a managed/self-hosted TURN service, monitoring, and stronger authorization before allowing real sensitive conversations.

@@ -369,6 +369,30 @@ io.on("connection", socket => {
     matchUsers();
   });
 
+  socket.on("voice_signal", data => {
+
+    if (!data || !data.room || !data.type) return;
+
+    const members = rooms.get(data.room);
+    if (!members) return;
+
+    const isMember =
+      members.talker === socket.id ||
+      members.listener === socket.id;
+
+    if (!isMember) return;
+
+    const allowed = new Set(["offer", "answer", "ice-candidate", "decline", "end"]);
+    if (!allowed.has(data.type)) return;
+
+    // Never trust a client-supplied destination. Relay only to the other room member.
+    socket.to(data.room).emit("voice_signal", {
+      room: data.room,
+      type: data.type,
+      data: data.data || null
+    });
+  });
+
   socket.on("send_message", data => {
 
     if (!data || !data.room || !data.text) {

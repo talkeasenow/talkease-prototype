@@ -255,6 +255,52 @@ p{
 }
 </style>
 
+/* =====================================================
+   VOICE CALL UI
+===================================================== */
+.voice-launch{
+  border:1px solid #ddd5ff;
+  background:#eeeafd;
+  color:#5c45c4;
+  border-radius:12px;
+  padding:8px 11px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.voice-launch:disabled{opacity:.55;cursor:not-allowed}
+.voice-panel{
+  position:absolute;
+  inset:0;
+  z-index:30;
+  background:rgba(247,245,252,.98);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:28px 22px;
+  text-align:center;
+}
+.voice-panel.hidden{display:none}
+.voice-avatar{
+  width:92px;height:92px;border-radius:50%;
+  background:#d9ceff;display:grid;place-items:center;
+  font-size:42px;margin-bottom:16px;
+}
+.voice-state{font-size:14px;color:#77738a;min-height:22px;margin:5px 0 18px}
+.voice-quality{font-size:12px;color:#15965a;margin-bottom:18px;min-height:18px}
+.voice-controls{display:flex;gap:14px;justify-content:center;margin-top:6px}
+.voice-control{
+  width:66px;height:66px;border:0;border-radius:50%;
+  background:#7357e8;color:#fff;font-size:25px;cursor:pointer;
+  box-shadow:0 5px 18px rgba(115,87,232,.2);
+}
+.voice-control.muted{background:#5f5a70}
+.voice-control.end{background:#d9485f}
+.voice-note{font-size:11px;color:#77738a;line-height:1.45;max-width:290px;margin-top:20px}
+.voice-incoming-actions{width:100%;max-width:300px;margin-top:8px}
+.voice-incoming-actions .btn{margin-top:8px}
+
 <style id="talkease-safety-css">
   .te-safety-link{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:8px 10px;border:0;background:transparent;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline}
   .te-safety-badge{font-size:11px;color:#6b7280;margin:4px 0 8px;text-align:center}
@@ -606,16 +652,19 @@ p{
 
     </div>
 
-    <span
-      class="pill"
-      id="tm"
+    <button
+      id="voiceLaunchBtn"
+      class="voice-launch"
+      onclick="startVoiceCall()"
+      title="Start a private voice conversation"
     >
-      20:00
-    </span>
+      🎙️ Voice
+    </button>
 
     <button
       onclick="endChat()"
       style="border:0;background:transparent;font-size:16px"
+      aria-label="End conversation"
     >
       ✕
     </button>
@@ -655,6 +704,33 @@ p{
 
 </section>
 
+<!-- =====================================================
+     VOICE CALL OVERLAY
+===================================================== -->
+<div id="voicePanel" class="voice-panel hidden" aria-live="polite">
+  <div class="voice-avatar">🎙️</div>
+  <h2 id="voicePeer">Human listener</h2>
+  <div id="voiceState" class="voice-state">Preparing voice call…</div>
+  <div id="voiceQuality" class="voice-quality">Checking connection…</div>
+
+  <div id="voiceIncomingActions" class="voice-incoming-actions" style="display:none">
+    <button class="btn" onclick="acceptIncomingVoice()">Accept voice call</button>
+    <button class="btn sec" onclick="declineIncomingVoice()">Not now</button>
+  </div>
+
+  <div id="voiceControls" class="voice-controls" style="display:none">
+    <button id="muteVoiceBtn" class="voice-control" onclick="toggleMute()" aria-label="Mute microphone">🔇</button>
+    <button class="voice-control end" onclick="endVoiceCall()" aria-label="End voice call">☎</button>
+  </div>
+
+  <div id="voiceRetryWrap" style="display:none;width:100%;max-width:300px">
+    <button class="btn" onclick="retryVoiceCall()">Try voice call again</button>
+    <button class="btn sec" onclick="closeVoicePanel()">Back to chat</button>
+  </div>
+
+  <div class="voice-note">TalkEase voice is audio-only. Your phone number is not shared with the other participant.</div>
+  <audio id="remoteAudio" autoplay playsinline></audio>
+</div>
 
 <!-- =====================================================
      ENDED
@@ -754,10 +830,6 @@ let role = "talker";
 
 let room = null;
 
-let timer = null;
-
-let t = 1200;
-
 let aiActive = false;
 
 let humanWaiting = false;
@@ -765,6 +837,22 @@ let humanWaiting = false;
 let aiHistory = [];
 
 let joining = false;
+
+/* Voice-call state. WebRTC carries the audio; Socket.IO only relays signaling. */
+let peerConnection = null;
+let localStream = null;
+let pendingIceCandidates = [];
+let voiceActive = false;
+let voiceMuted = false;
+let incomingVoiceOffer = null;
+let voiceCallStarter = false;
+const rtcConfig = {
+  iceServers: [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }
+  ],
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require"
+};
 
 
 /*
@@ -999,12 +1087,16 @@ function join(){
 
       show("chatScreen");
 
-      startTimer();
-
     }
 
   });
 
+
+  /*
+  WebRTC signaling.
+  The server relays offer/answer/ICE only between matched room members.
+  */
+  socket.on("voice_signal", handleVoiceSignal);
 
   /*
   Human message.
@@ -1030,8 +1122,8 @@ function join(){
 
   socket.on("ended",()=>{
 
-    clearInterval(timer);
-
+    cleanupVoice(false);
+    document.getElementById("voicePanel").classList.add("hidden");
     show("ended");
 
   });
@@ -1466,8 +1558,6 @@ function acceptHuman(){
 
   show("chatScreen");
 
-  startTimer();
-
   addHuman(
     "Hi. I'm your human listener. I'm here to listen.",
     false
@@ -1543,87 +1633,254 @@ function addHuman(text,me){
 
 /*
 ========================================================
-TIMER
+VOICE CALL — WEBRTC
 ========================================================
 */
 
-function startTimer(){
-
-  t = 1200;
-
-  clearInterval(timer);
-
-  updateTimer();
-
-  timer =
-    setInterval(()=>{
-
-      t--;
-
-      updateTimer();
-
-      if(t <= 0){
-
-        endChat();
-
-      }
-
-    },1000);
-
+function setVoiceState(text, quality = "") {
+  const state = document.getElementById("voiceState");
+  const q = document.getElementById("voiceQuality");
+  if (state) state.textContent = text;
+  if (q) q.textContent = quality;
 }
 
-
-/*
-========================================================
-UPDATE TIMER
-========================================================
-*/
-
-function updateTimer(){
-
-  const timerElement =
-    document.getElementById("tm");
-
-  const minutes =
-    Math.floor(t / 60);
-
-  const seconds =
-    String(t % 60).padStart(2,"0");
-
-  timerElement.textContent =
-    minutes + ":" + seconds;
-
+function openVoicePanel() {
+  document.getElementById("voicePanel").classList.remove("hidden");
 }
 
+function closeVoicePanel() {
+  cleanupVoice(false);
+  document.getElementById("voicePanel").classList.add("hidden");
+}
 
-/*
-========================================================
-END CHAT
-========================================================
-*/
+async function getMicrophone() {
+  if (localStream) return localStream;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("Voice calling is not supported by this browser.");
+  }
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      channelCount: 1
+    },
+    video: false
+  });
+  return localStream;
+}
 
-function endChat(){
+function createPeerConnection() {
+  if (peerConnection) peerConnection.close();
+  peerConnection = new RTCPeerConnection(rtcConfig);
+  pendingIceCandidates = [];
 
-  if(socket){
+  peerConnection.onicecandidate = event => {
+    if (event.candidate && socket && room) {
+      socket.emit("voice_signal", { room, type: "ice-candidate", data: event.candidate });
+    }
+  };
 
-    try{
+  peerConnection.ontrack = event => {
+    const audio = document.getElementById("remoteAudio");
+    if (audio && event.streams[0]) {
+      audio.srcObject = event.streams[0];
+      audio.play().catch(() => {});
+    }
+  };
 
-      socket.emit("end");
+  peerConnection.onconnectionstatechange = () => {
+    if (!peerConnection) return;
+    const state = peerConnection.connectionState;
+    if (state === "connected") {
+      voiceActive = true;
+      setVoiceState("Voice connected", "🟢 Connection established");
+      document.getElementById("voiceControls").style.display = "flex";
+      document.getElementById("voiceIncomingActions").style.display = "none";
+      document.getElementById("voiceRetryWrap").style.display = "none";
+    } else if (state === "connecting") {
+      setVoiceState("Establishing secure voice connection…", "Checking connection…");
+    } else if (state === "disconnected") {
+      setVoiceState("Connection interrupted", "🟡 Trying to reconnect…");
+    } else if (state === "failed") {
+      setVoiceState("Voice connection failed", "Please try again.");
+      document.getElementById("voiceControls").style.display = "none";
+      document.getElementById("voiceRetryWrap").style.display = "block";
+      voiceActive = false;
+    }
+  };
 
-    }catch(error){
+  peerConnection.oniceconnectionstatechange = () => {
+    if (!peerConnection) return;
+    const ice = peerConnection.iceConnectionState;
+    if (ice === "checking") setVoiceState("Finding the best connection…", "Checking network path…");
+    if (ice === "connected" || ice === "completed") setVoiceState("Voice connected", "🟢 Connection established");
+    if (ice === "failed") setVoiceState("Voice connection failed", "Please try again.");
+  };
 
-      console.error(error);
+  return peerConnection;
+}
 
+async function startVoiceCall() {
+  if (!socket || !room) {
+    alert("Please connect with a human listener first.");
+    return;
+  }
+  if (voiceActive) return;
+
+  openVoicePanel();
+  voiceCallStarter = true;
+  incomingVoiceOffer = null;
+  document.getElementById("voicePeer").textContent = document.getElementById("peer").textContent || "Human listener";
+  document.getElementById("voiceControls").style.display = "none";
+  document.getElementById("voiceIncomingActions").style.display = "none";
+  document.getElementById("voiceRetryWrap").style.display = "none";
+  setVoiceState("Preparing voice call…", "Microphone permission may be requested.");
+
+  try {
+    const stream = await getMicrophone();
+    const pc = createPeerConnection();
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    const offer = await pc.createOffer({ offerToReceiveAudio: true });
+    await pc.setLocalDescription(offer);
+    socket.emit("voice_signal", { room, type: "offer", data: pc.localDescription });
+    setVoiceState("Calling…", "Establishing connection…");
+  } catch (error) {
+    console.error("Voice start error:", error);
+    setVoiceState("Microphone access is required", "Please allow microphone access and try again.");
+    document.getElementById("voiceRetryWrap").style.display = "block";
+  }
+}
+
+async function acceptIncomingVoice() {
+  if (!incomingVoiceOffer || !socket || !room) return;
+  try {
+    const stream = await getMicrophone();
+    const pc = createPeerConnection();
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    await pc.setRemoteDescription(incomingVoiceOffer);
+    for (const candidate of pendingIceCandidates) await pc.addIceCandidate(candidate);
+    pendingIceCandidates = [];
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit("voice_signal", { room, type: "answer", data: pc.localDescription });
+    incomingVoiceOffer = null;
+    setVoiceState("Joining voice call…", "Establishing connection…");
+    document.getElementById("voiceIncomingActions").style.display = "none";
+  } catch (error) {
+    console.error("Voice accept error:", error);
+    setVoiceState("Couldn't connect the voice call", "Please try again.");
+    document.getElementById("voiceRetryWrap").style.display = "block";
+  }
+}
+
+function declineIncomingVoice() {
+  if (socket && room) socket.emit("voice_signal", { room, type: "decline" });
+  incomingVoiceOffer = null;
+  closeVoicePanel();
+}
+
+async function handleVoiceSignal(payload) {
+  if (!payload || !payload.type || !room || payload.room !== room) return;
+
+  try {
+    if (payload.type === "offer") {
+      incomingVoiceOffer = payload.data;
+      voiceCallStarter = false;
+      openVoicePanel();
+      document.getElementById("voicePeer").textContent = document.getElementById("peer").textContent || "Talker";
+      document.getElementById("voiceControls").style.display = "none";
+      document.getElementById("voiceRetryWrap").style.display = "none";
+      document.getElementById("voiceIncomingActions").style.display = "block";
+      setVoiceState("Incoming voice call", "A human listener wants to talk by voice.");
+      return;
     }
 
+    if (payload.type === "answer" && peerConnection) {
+      await peerConnection.setRemoteDescription(payload.data);
+      for (const candidate of pendingIceCandidates) await peerConnection.addIceCandidate(candidate);
+      pendingIceCandidates = [];
+      return;
+    }
+
+    if (payload.type === "ice-candidate" && payload.data) {
+      if (peerConnection && peerConnection.remoteDescription) {
+        await peerConnection.addIceCandidate(payload.data);
+      } else {
+        pendingIceCandidates.push(payload.data);
+      }
+      return;
+    }
+
+    if (payload.type === "decline") {
+      setVoiceState("Voice call declined", "You can continue with text chat.");
+      cleanupVoice(false);
+      document.getElementById("voiceRetryWrap").style.display = "none";
+      setTimeout(closeVoicePanel, 1000);
+    }
+  } catch (error) {
+    console.error("Voice signaling error:", error);
+    setVoiceState("Voice connection error", "Please try again.");
+    document.getElementById("voiceRetryWrap").style.display = "block";
   }
-
-  clearInterval(timer);
-
-  show("ended");
-
 }
 
+function toggleMute() {
+  if (!localStream) return;
+  voiceMuted = !voiceMuted;
+  localStream.getAudioTracks().forEach(track => { track.enabled = !voiceMuted; });
+  const button = document.getElementById("muteVoiceBtn");
+  button.classList.toggle("muted", voiceMuted);
+  button.textContent = voiceMuted ? "🔊" : "🔇";
+  button.setAttribute("aria-label", voiceMuted ? "Unmute microphone" : "Mute microphone");
+  setVoiceState(voiceMuted ? "Microphone muted" : "Voice connected", voiceMuted ? "🔇 Your microphone is muted" : "🟢 Connection established");
+}
+
+function endVoiceCall() {
+  cleanupVoice(true);
+  closeVoicePanel();
+}
+
+function cleanupVoice(notifyRemote = false) {
+  if (notifyRemote && socket && room) {
+    try { socket.emit("voice_signal", { room, type: "end" }); } catch (e) {}
+  }
+  if (peerConnection) {
+    try { peerConnection.close(); } catch (e) {}
+  }
+  peerConnection = null;
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+  localStream = null;
+  pendingIceCandidates = [];
+  incomingVoiceOffer = null;
+  voiceActive = false;
+  voiceMuted = false;
+  const audio = document.getElementById("remoteAudio");
+  if (audio) audio.srcObject = null;
+  const mute = document.getElementById("muteVoiceBtn");
+  if (mute) { mute.classList.remove("muted"); mute.textContent = "🔇"; }
+}
+
+function retryVoiceCall() {
+  cleanupVoice(false);
+  document.getElementById("voiceRetryWrap").style.display = "none";
+  if (role === "talker") startVoiceCall();
+  else {
+    setVoiceState("Waiting for a new voice call…", "");
+    closeVoicePanel();
+  }
+}
+
+/* End the human chat. There is intentionally no conversation timer. */
+function endChat(){
+  cleanupVoice(true);
+  if(socket){
+    try{ socket.emit("end"); }catch(error){ console.error(error); }
+  }
+  show("ended");
+}
 
 /*
 ========================================================
@@ -1651,11 +1908,10 @@ function cancel(){
 
   }
 
+  cleanupVoice(false);
   humanWaiting = false;
 
   aiActive = false;
-
-  clearInterval(timer);
 
   show("home");
 
@@ -1846,20 +2102,7 @@ console.log(
 })();
 </script>
 
-<script id="talkease-product-extras">
-(function(){
-  window.addEventListener('load',function(){
-    const timer=document.querySelector('[id*="timer" i],[class*="timer" i]');
-    if(timer && !document.getElementById('te-timer-note')){
-      const n=document.createElement('div');
-      n.id='te-timer-note';
-      n.className='te-safety-badge';
-      n.textContent='20-minute maximum • ends automatically when time runs out';
-      timer.parentElement && timer.parentElement.appendChild(n);
-    }
-  });
-})();
-</script>
+
 
 </body>
 </html>
