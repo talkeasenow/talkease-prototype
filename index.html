@@ -892,6 +892,22 @@ function addOptionalTurnServer() {
 }
 addOptionalTurnServer();
 
+async function loadServerTurnConfig() {
+  try {
+    const response = await fetch("/api/turn-config", { cache: "no-store" });
+    if (!response.ok) return;
+    const config = await response.json();
+    if (config && Array.isArray(config.iceServers)) {
+      for (const server of config.iceServers) {
+        if (server && server.urls) rtcConfig.iceServers.push(server);
+      }
+    }
+  } catch (error) {
+    console.warn("TURN configuration unavailable; continuing with STUN:", error);
+  }
+}
+loadServerTurnConfig();
+
 
 /*
 ========================================================
@@ -1788,10 +1804,23 @@ async function getMicrophone() {
   return localStream;
 }
 
+async function flushPendingIceCandidates(pc) {
+  if (!pc || !pc.remoteDescription || !pendingIceCandidates.length) return;
+  const queued = pendingIceCandidates.splice(0);
+  for (const candidate of queued) {
+    try {
+      await pc.addIceCandidate(candidate);
+    } catch (error) {
+      console.warn("Unable to add queued ICE candidate:", error);
+    }
+  }
+}
+
 function createPeerConnection() {
   if (peerConnection) peerConnection.close();
   peerConnection = new RTCPeerConnection(rtcConfig);
-  pendingIceCandidates = [];
+  // Do NOT clear pending remote ICE here. On slow/mobile networks, candidates can arrive
+  // before the user accepts the incoming call. They are flushed after setRemoteDescription().
 
   peerConnection.onicecandidate = event => {
     if (event.candidate && socket && room) {
@@ -1906,8 +1935,7 @@ async function acceptIncomingVoice() {
     const pc = createPeerConnection();
     stream.getTracks().forEach(track => pc.addTrack(track, stream));
     await pc.setRemoteDescription(incomingVoiceOffer);
-    for (const candidate of pendingIceCandidates) await pc.addIceCandidate(candidate);
-    pendingIceCandidates = [];
+    await flushPendingIceCandidates(pc);
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     socket.emit("voice_signal", { room, type: "answer", data: pc.localDescription });

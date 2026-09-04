@@ -14,6 +14,22 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
+app.get("/api/turn-config", (req, res) => {
+  const url = process.env.TURN_URL;
+  const username = process.env.TURN_USERNAME;
+  const credential = process.env.TURN_CREDENTIAL;
+
+  if (!url || !username || !credential) {
+    return res.json({ configured: false, iceServers: [] });
+  }
+
+  res.json({
+    configured: true,
+    iceServers: [{ urls: url, username, credential }]
+  });
+});
+
+
 /*
 ========================================================
 GEMINI AI
