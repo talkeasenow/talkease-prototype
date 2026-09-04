@@ -1692,12 +1692,26 @@ async function getMicrophone() {
 function createPeerConnection() {
   if (peerConnection) peerConnection.close();
   peerConnection = new RTCPeerConnection(rtcConfig);
-  pendingIceCandidates = [];
+
+  /*
+   * IMPORTANT: do not clear pendingIceCandidates here.
+   * The caller can send trickled ICE candidates before the listener
+   * presses Accept. Those candidates must survive until the answerer
+   * has applied the remote offer.
+   */
 
   peerConnection.onicecandidate = event => {
     if (event.candidate && socket && room) {
       socket.emit("voice_signal", { room, type: "ice-candidate", data: event.candidate });
     }
+  };
+
+  peerConnection.onicecandidateerror = event => {
+    console.warn("WebRTC ICE candidate error:", {
+      url: event.url,
+      errorCode: event.errorCode,
+      errorText: event.errorText
+    });
   };
 
   peerConnection.ontrack = event => {
@@ -1757,6 +1771,8 @@ async function startVoiceCall() {
   setVoiceState("Preparing voice call…", "Microphone permission may be requested.");
 
   try {
+    /* Start a fresh candidate queue for a new outgoing call. */
+    pendingIceCandidates = [];
     const stream = await getMicrophone();
     const pc = createPeerConnection();
     stream.getTracks().forEach(track => pc.addTrack(track, stream));
@@ -1766,7 +1782,11 @@ async function startVoiceCall() {
     setVoiceState("Calling…", "Establishing connection…");
   } catch (error) {
     console.error("Voice start error:", error);
-    setVoiceState("Microphone access is required", "Please allow microphone access and try again.");
+    const microphoneIssue = error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError";
+    setVoiceState(
+      microphoneIssue ? "Microphone access is required" : "Couldn't start the voice call",
+      microphoneIssue ? "Please allow microphone access and try again." : "Please try the voice call again."
+    );
     document.getElementById("voiceRetryWrap").style.display = "block";
   }
 }
@@ -1836,6 +1856,16 @@ async function handleVoiceSignal(payload) {
       cleanupVoice(false);
       document.getElementById("voiceRetryWrap").style.display = "none";
       setTimeout(closeVoicePanel, 1000);
+      return;
+    }
+
+    if (payload.type === "end") {
+      cleanupVoice(false);
+      setVoiceState("Voice call ended", "You can continue with text chat.");
+      document.getElementById("voiceControls").style.display = "none";
+      document.getElementById("voiceIncomingActions").style.display = "none";
+      document.getElementById("voiceRetryWrap").style.display = "block";
+      return;
     }
   } catch (error) {
     console.error("Voice signaling error:", error);

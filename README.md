@@ -70,3 +70,22 @@ For production, add authenticated signaling, rate limiting, abuse controls, a ma
 ### Important deployment point
 
 STUN-only WebRTC cannot guarantee a connection between every pair of users. A TURN relay is the normal production fallback when direct peer-to-peer ICE fails. Keep TURN credentials server-side or issue short-lived credentials; do not hard-code permanent secrets into the public HTML.
+
+
+## Voice-call reliability fix in this build
+
+The voice signaling path buffers trickled ICE candidates that arrive while an incoming call is waiting for the listener to press **Accept**. The previous build cleared that buffer when creating the answer-side peer connection, which could cause the WebRTC connection to fail even though the signaling server and UI were working. This build preserves those candidates until the remote offer is applied. It also handles remote voice-call termination and logs ICE candidate errors for easier diagnosis.
+
+## How to test the voice call
+
+1. Deploy this folder as the Node.js service on Render (or run it locally).
+2. Open the app on **two separate devices or browser sessions**.
+3. Join one as **Talker** and one as **Listener** so they are matched.
+4. On the Talker device, tap **Voice**.
+5. Allow microphone permission.
+6. On the Listener device, tap **Accept voice call**.
+7. Confirm both sides show **Voice connected** and test speaking, mute, and end call.
+
+### Important limitation
+
+This prototype uses public STUN servers and does **not** include a TURN relay. STUN is free and is enough for many networks, but it cannot guarantee connectivity across every mobile carrier, CGNAT, corporate network, or restrictive firewall. For investor/public testing, add a properly configured TURN service with short-lived credentials.
